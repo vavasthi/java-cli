@@ -46,6 +46,7 @@ public class LoadBhavcopy {
     private void parseBhavcopy(File directory) throws IOException {
 
         for (File file : directory.listFiles()) {
+            System.out.println(file.getAbsolutePath());
             if (Pattern.matches(oldBhavcopyPattern, file.getName())) {
                 parseAndLoadOldBhavcopy(file);
             } else if (Pattern.matches(newBhavcopyPattern, file.getName())) {
@@ -79,7 +80,8 @@ public class LoadBhavcopy {
                 float prevClose = Float.parseFloat(csvRecord.get("prevClose"));
                 long totalTransactedQuantity = Long.parseLong(csvRecord.get("totalTransactedQuantity"));
                 float totalTransactedValue = Float.parseFloat(csvRecord.get("totalTransactedValue"));
-                Date timestamp = Date.from(LocalDate.parse(csvRecord.get("timestamp"), ddmmyyFormat).atStartOfDay().toInstant(currentZoneOffset));
+                String strTimestamp = csvRecord.get("timestamp");
+                Date timestamp = Date.from(LocalDate.parse(strTimestamp, ddmmyyFormat).atStartOfDay().toInstant(currentZoneOffset));
                 int noTrades = -1;
                 try {
 
@@ -101,10 +103,11 @@ public class LoadBhavcopy {
                         isin = sm.isin();
                     }
                 }
-                StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, series, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, timestamp, noTrades, isin);
-                collection.insertOne(sp);
+/*                StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, series, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, timestamp, noTrades, isin, csv.getName());
+                collection.insertOne(sp);*/
             }
             catch (Exception e) {
+                System.out.println(csvRecord.toString());
                 System.out.println(String.format("Error is file %s -> %s", csv.getName(), e.toString()));
                 throw e;
             }
@@ -144,7 +147,8 @@ public class LoadBhavcopy {
                 float prevClose = Float.parseFloat(csvRecord.get("prevClose"));
                 long totalTransactedQuantity = Long.parseLong(csvRecord.get("totalTransactedQuantity"));
                 float totalTransactedValue = Float.parseFloat(csvRecord.get("totalTransactedValue"));
-                Date timestamp = Date.from(LocalDate.parse(csvRecord.get("timestamp"), ddmmyyFormat).atStartOfDay().toInstant(currentZoneOffset));
+                String strTimestamp = csvRecord.get("timestamp");
+                Date timestamp = Date.from(LocalDate.parse(strTimestamp, ddmmyyFormat).atStartOfDay().toInstant(currentZoneOffset));
                 int noTrades = -1;
                 try {
 
@@ -166,8 +170,8 @@ public class LoadBhavcopy {
                         isin = sm.isin();
                     }
                 }
-                StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, series, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, timestamp, noTrades, isin);
-                collection.insertOne(sp);
+/*                StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, series, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, timestamp, noTrades, isin, csv.getName());
+                collection.insertOne(sp);*/
             }
             catch (Exception e) {
                 System.out.println(csvRecord.toString());
