@@ -51,5 +51,11 @@
         <artifactId>mongodb-driver-sync</artifactId>
         <version>5.1.1</version>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/org.brotli/dec -->
+    <dependency>
+        <groupId>org.brotli</groupId>
+        <artifactId>dec</artifactId>
+        <version>0.1.2</version>
+    </dependency>
 </dependencies>
 </project>
