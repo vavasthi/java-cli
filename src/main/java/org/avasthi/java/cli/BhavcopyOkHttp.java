@@ -19,9 +19,9 @@ public class BhavcopyOkHttp {
 
         SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-YYYY");
         Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.DAY_OF_MONTH, 6);
-        calendar.set(Calendar.MONTH, 6);
-        calendar.set(Calendar.YEAR, 2024);
+        calendar.set(Calendar.DAY_OF_MONTH, 26);
+        calendar.set(Calendar.MONTH, 9);
+        calendar.set(Calendar.YEAR, 2022);
         OkHttpClient client = new OkHttpClient();
         BhavcopyOkHttp bcoh = new BhavcopyOkHttp();
         Headers headers = bcoh.allReports(client);
@@ -31,9 +31,32 @@ public class BhavcopyOkHttp {
             try {
 
                 bcoh.downloadBhavCopy(client, headers, calendar, ddmmyyFormat);
-            }
-            catch (Exception e) {
-                System.out.println("Failed for " + calendar.getTime().toString() + " " + e.toString());
+                Thread.sleep(2000);
+            } catch (Exception e) {
+                Thread.sleep(5000);
+                System.out.println("Retrying");
+                try {
+
+                    bcoh.downloadBhavCopy(client, headers, calendar, ddmmyyFormat);
+                } catch (Exception e1) {
+
+                    Thread.sleep(10000);
+                    System.out.println("Retrying again");
+                    try {
+
+                        bcoh.downloadBhavCopy(client, headers, calendar, ddmmyyFormat);
+                    } catch (Exception e2) {
+
+                        Thread.sleep(10000);
+                        System.out.println("Retrying again again");
+                        try {
+                            bcoh.downloadBhavCopy(client, headers, calendar, ddmmyyFormat);
+                        } catch (Exception e3) {
+
+                            System.out.println("Download FAILED .. " + calendar.getTime());
+                        }
+                    }
+                }
             }
             calendar.add(Calendar.DAY_OF_MONTH, 1);
         }
