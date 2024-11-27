@@ -41,7 +41,7 @@ public class Base {
         prefs.put("safebrowsing_for_trusted_sources_enabled", false);
         prefs.put("safebrowsing.enabled",false);
         ChromeOptions chromeOptions = new ChromeOptions();
-        chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen");
+        chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--headless=new");
         chromeOptions.setAcceptInsecureCerts(true);
         chromeOptions.setExperimentalOption("prefs", prefs);
         return new ChromeDriver(chromeOptions);
