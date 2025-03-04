@@ -9,6 +9,7 @@ import com.mongodb.client.MongoCollection;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.avasthi.java.cli.pojos.Bhav;
 import org.avasthi.java.cli.pojos.StockMaster;
 import org.avasthi.java.cli.pojos.StockPrice;
 import org.bson.Document;
@@ -31,12 +32,9 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 
-public class LoadBhavcopy {
-    private String mongoUrl = "mongodb://localhost";
+public class LoadBhavcopy extends Base {
     private final String oldBhavcopyPattern = "cm.*bhav\\.csv";
     private final String newBhavcopyPattern = "BhavCopy_NSE_CM.*\\.csv";
-    private final String database = "capitalMarkets";
-    private final MongoClient mongoClient = getMongoClient();
     public static void main(String[] args) throws IOException, InterruptedException, ParseException {
         LoadBhavcopy lsm = new LoadBhavcopy();
         File directory = new File("/Users/vavasthi/Downloads/Bhavcopy");
@@ -46,11 +44,14 @@ public class LoadBhavcopy {
     private void parseBhavcopy(File directory) throws IOException {
 
         for (File file : directory.listFiles()) {
-            System.out.println(file.getAbsolutePath());
-            if (Pattern.matches(oldBhavcopyPattern, file.getName())) {
-                parseAndLoadOldBhavcopy(file);
-            } else if (Pattern.matches(newBhavcopyPattern, file.getName())) {
-                parseAndLoadNewBhavcopy(file);
+            if (file.isFile() && file.getName().endsWith("csv")) {
+
+                System.out.println(file.getAbsolutePath());
+                if (Pattern.matches(oldBhavcopyPattern, file.getName())) {
+                    parseAndLoadOldBhavcopy(file);
+                } else if (Pattern.matches(newBhavcopyPattern, file.getName())) {
+                    parseAndLoadNewBhavcopy(file);
+                }
             }
         }
     }
@@ -67,7 +68,7 @@ public class LoadBhavcopy {
                 .setSkipHeaderRecord(true)
                 .setHeader("symbol", "series", "open", "high", "low", "close", "last", "prevClose", "totalTransactedQuantity","totalTransactedValue","timestamp", "noTrades", "isin").build();
         CSVParser parser = CSVParser.parse(csv, Charset.defaultCharset(), format);
-        MongoCollection<StockPrice> collection = mongoClient.getDatabase(database).getCollection("stockPrice", StockPrice.class);
+        MongoCollection<Bhav> collection = mongoClient.getDatabase(database).getCollection("stockPrice", Bhav.class);
         for (CSVRecord csvRecord:parser) {
             try {
                 String symbol = csvRecord.get("symbol");
@@ -81,8 +82,8 @@ public class LoadBhavcopy {
                 long totalTransactedQuantity = Long.parseLong(csvRecord.get("totalTransactedQuantity"));
                 float totalTransactedValue = Float.parseFloat(csvRecord.get("totalTransactedValue"));
                 String strTimestamp = csvRecord.get("timestamp");
-                Date timestamp = Date.from(LocalDate.parse(strTimestamp, ddmmyyFormat).atStartOfDay().toInstant(currentZoneOffset));
-                int noTrades = -1;
+                Date timestamp = Date.from(LocalDate.parse(strTimestamp, ddmmyyFormat).atTime(23, 59, 59).toInstant(currentZoneOffset));
+                long noTrades = -1;
                 try {
 
                     noTrades  = Integer.parseInt(csvRecord.get("noTrades"));
@@ -103,8 +104,8 @@ public class LoadBhavcopy {
                         isin = sm.isin();
                     }
                 }
-/*                StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, series, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, timestamp, noTrades, isin, csv.getName());
-                collection.insertOne(sp);*/
+                Bhav sp = new Bhav(UUID.randomUUID(), symbol, series, timestamp, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, noTrades, isin, csv.getName());
+                collection.insertOne(sp);
             }
             catch (Exception e) {
                 System.out.println(csvRecord.toString());
@@ -127,7 +128,7 @@ public class LoadBhavcopy {
                 .setSkipHeaderRecord(true)
                 .setHeader("timestamp", "bizdt", "segment", "src", "type", "instrumnentid", "isin", "symbol", "series", "expiryDate", "financialInstrumentExpiryDate", "stockPrice", "optionType", "name", "open", "high", "low", "close", "last", "prevClose", "underlyingPrice", "settlementPrice", "optionInterest", "changeInOptionInterest",  "totalTransactedQuantity","totalTransactedValue", "noTrades").build();
         CSVParser parser = CSVParser.parse(csv, Charset.defaultCharset(), format);
-        MongoCollection<StockPrice> collection = mongoClient.getDatabase(database).getCollection("stockPrice", StockPrice.class);
+        MongoCollection<Bhav> collection = mongoClient.getDatabase(database).getCollection(stockPriceCollection, Bhav.class);
         for (CSVRecord csvRecord:parser) {
             try {
                 String symbol = csvRecord.get("symbol");
@@ -149,7 +150,7 @@ public class LoadBhavcopy {
                 float totalTransactedValue = Float.parseFloat(csvRecord.get("totalTransactedValue"));
                 String strTimestamp = csvRecord.get("timestamp");
                 Date timestamp = Date.from(LocalDate.parse(strTimestamp, ddmmyyFormat).atStartOfDay().toInstant(currentZoneOffset));
-                int noTrades = -1;
+                long noTrades = -1;
                 try {
 
                     noTrades  = Integer.parseInt(csvRecord.get("noTrades"));
@@ -170,8 +171,22 @@ public class LoadBhavcopy {
                         isin = sm.isin();
                     }
                 }
-/*                StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, series, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, timestamp, noTrades, isin, csv.getName());
-                collection.insertOne(sp);*/
+                Bhav sp = new Bhav(UUID.randomUUID(),
+                        symbol,
+                        series,
+                        timestamp,
+                        open,
+                        high,
+                        low,
+                        close,
+                        last,
+                        prevClose,
+                        totalTransactedQuantity,
+                        totalTransactedValue,
+                        noTrades,
+                        isin,
+                        csv.getName());
+                collection.insertOne(sp);
             }
             catch (Exception e) {
                 System.out.println(csvRecord.toString());
@@ -179,12 +194,5 @@ public class LoadBhavcopy {
                 throw e;
             }
         }
-    }
-    private MongoClient getMongoClient() {
-        return MongoClients.create(
-                MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoUrl))
-                        .uuidRepresentation(UuidRepresentation.JAVA_LEGACY)
-                        .build()
-        );
     }
 }

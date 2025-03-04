@@ -28,8 +28,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 
-public class LoadStockMaster {
-    private String mongoUrl = "mongodb://localhost";
+public class LoadStockMaster extends Base{
     public static void main(String[] args) throws IOException, InterruptedException, ParseException {
         LoadStockMaster lsm = new LoadStockMaster();
         lsm.parseCsvFile("/Users/vavasthi/Downloads/EQUITY_L.CSV");
@@ -46,7 +45,7 @@ public class LoadStockMaster {
         CSVFormat format = CSVFormat.DEFAULT.builder().setSkipHeaderRecord(true).setHeader("symbol", "name", "series", "dateOfListing", "paidUpValue", "marketLot", "isin", "faceValue").build();
         CSVParser parser = CSVParser.parse(csv, Charset.defaultCharset(), format);
         System.out.println(parser.getHeaderNames());
-        MongoCollection<StockMaster> collection = getMongoClient().getDatabase("capitalMarkets").getCollection("stockMaster", StockMaster.class);
+        MongoCollection<StockMaster> collection = mongoClient.getDatabase(database).getCollection(stockMasterCollection, StockMaster.class);
         for (CSVRecord csvRecord:parser) {
             System.out.println(csvRecord.toString());
             String symbol = csvRecord.get("symbol");
@@ -61,12 +60,5 @@ public class LoadStockMaster {
             System.out.println(sm);
             collection.insertOne(sm);
         }
-    }
-    private MongoClient getMongoClient() {
-        return MongoClients.create(
-                MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoUrl))
-                        .uuidRepresentation(UuidRepresentation.JAVA_LEGACY)
-                        .build()
-        );
     }
 }

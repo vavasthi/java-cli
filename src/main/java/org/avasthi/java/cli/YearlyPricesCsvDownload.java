@@ -26,7 +26,7 @@ public class YearlyPricesCsvDownload {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.DAY_OF_MONTH, 1);
         calendar.set(Calendar.MONTH, 0);
-        calendar.set(Calendar.YEAR, 1994);
+        calendar.set(Calendar.YEAR, 2001);
         OkHttpClient client = new OkHttpClient();
         YearlyPricesCsvDownload bcoh = new YearlyPricesCsvDownload();
         Headers headers = bcoh.allReports(client);
@@ -36,6 +36,7 @@ public class YearlyPricesCsvDownload {
             try {
 
                 bcoh.downloadStockPriceCsv(client, "RELIANCE", headers, calendar);
+                //Thread.sleep(30000);
             }
             catch (Exception e) {
                 System.out.println("Failed for " + calendar.getTime().toString() + " " + e.toString());
@@ -88,8 +89,10 @@ public class YearlyPricesCsvDownload {
         String fromDate = ddmmyyFormat.format(calendar.getTime());
         calendar.add(Calendar.YEAR, 1);
         String toDate = ddmmyyFormat.format(calendar.getTime());
-        String urlSuffix = "from=" + fromDate + "&to=" + toDate + "&symbol=" + symbol;
+//        String urlSuffix = "from=" + fromDate + "&to=" + toDate + "&symbol=" + symbol;
+        String urlSuffix = "from=" + fromDate + "&to=" + toDate;
         String url = stockData + "&" + urlSuffix;
+        System.out.println(url);
         downloadStockPriceCsv(client, url, headers);
     }
     private void downloadStockPriceCsv(OkHttpClient client,
