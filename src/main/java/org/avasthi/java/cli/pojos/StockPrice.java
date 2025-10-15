@@ -12,5 +12,5 @@ public record StockPrice(UUID _id,
                          float low,
                          float close,
                          float adjustedClose,
-                         Long volume) {
+                         float volume) {
 }

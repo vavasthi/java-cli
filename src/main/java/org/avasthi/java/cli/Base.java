@@ -10,44 +10,72 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.bson.UuidRepresentation;
+import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.codecs.pojo.PojoCodecProvider;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
+import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 public class Base {
     protected final String mongoUrl = "mongodb://localhost";
     protected final String database = "capitalMarkets";
     protected final MongoClient mongoClient = getMongoClient();
-    protected final String stockMasterCollection = "stockMaster";
-    protected final String stockPriceCollection = "stockPrice";
-    protected final String corporateEventCollection = "corporateEvents";
+    protected final String stockMasterCollectionName = "stockMaster";
+    protected final String stockPriceCollectionName = "stockPrice";
+    protected final String corporateEventCollectionName = "corporateEvents";
+    protected final String quarterlyResultsCollectionName = "quarterlyResults";
+    protected final String cpiCollectionName = "cpi";
+    protected final String iipCollectionName = "iip";
 
     protected MongoClient getMongoClient() {
+        CodecRegistry pojoCodecRegistry = fromRegistries(
+                MongoClientSettings.getDefaultCodecRegistry(),
+                fromProviders(PojoCodecProvider.builder().automatic(true).build())
+        );
+
         return MongoClients.create(
                 MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoUrl))
+                        .codecRegistry(pojoCodecRegistry)
                         .uuidRepresentation(UuidRepresentation.JAVA_LEGACY)
                         .build()
         );
     }
     protected WebDriver getWebDriver() {
+        return getWebDriver(true);
+    }
+    protected WebDriver getWebDriver(boolean headless) {
         Map<String, Object> prefs = new HashMap<>();
         prefs.put("download.prompt_for_download", false);
         prefs.put("download.directory_upgrade", true);
         prefs.put("safebrowsing_for_trusted_sources_enabled", false);
         prefs.put("safebrowsing.enabled",false);
+        prefs.put("excludeSwitches", Arrays.asList("enable-automation"));
+
         ChromeOptions chromeOptions = new ChromeOptions();
-        chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--headless=new");
+        if (headless) {
+
+            chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--headless=new");
+        }
+        else {
+
+            chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--disable-blink-features=AutomationControlled");
+        }
         chromeOptions.setAcceptInsecureCerts(true);
         chromeOptions.setExperimentalOption("prefs", prefs);
+        chromeOptions.addArguments("--disable-extensions");
         return new ChromeDriver(chromeOptions);
     }
     protected Headers allReports(OkHttpClient client) {
-        String url = "https://www.nseindia.com/all-reports";
+        String url = "https://www.nseindia.com/companies-listing/corporate-filings-financial-results";
         Request request = new Request.Builder()
                 .url(url)
                 .headers(defaultHeaders(new Headers.Builder()).build())

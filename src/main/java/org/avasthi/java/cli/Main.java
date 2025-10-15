@@ -9,13 +9,16 @@ public class Main {
     public static void main(String[] args) throws ParseException {
 
         Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR, 16);
-        calendar.set(Calendar.MINUTE, 10);
-        calendar.set(Calendar.AM_PM, Calendar.PM);
-        System.out.println(calendar.getTime().toString());
-        SimpleDateFormat dateFormat = new SimpleDateFormat("K:mm a");
-        String d1 = "04:00 PM";
-        System.out.println(dateFormat.parse(d1).toString());
-        System.out.println(dateFormat.format(new Date()));
+        calendar.set(Calendar.MONTH, 9);
+        calendar.set(Calendar.DAY_OF_MONTH, 1);
+        calendar.add(Calendar.DAY_OF_MONTH, -1);
+        calendar.set(Calendar.YEAR, 2025);
+        System.out.println(calendar.getTime());
+        calendar.add(Calendar.MONTH, -3);
+        while(calendar.get(Calendar.DAY_OF_MONTH) != 1) {
+
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+        }
+        System.out.println(calendar.getTime());
     }
 }

@@ -1,19 +1,12 @@
 package org.avasthi.java.cli;
 
-import com.mongodb.ConnectionString;
-import com.mongodb.MongoClientSettings;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.avasthi.java.cli.pojos.Bhav;
 import org.avasthi.java.cli.pojos.StockMaster;
-import org.avasthi.java.cli.pojos.StockPrice;
 import org.bson.Document;
-import org.bson.UuidRepresentation;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +19,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -100,8 +92,8 @@ public class LoadBhavcopy extends Base {
                     Document filter = new Document("symbol", symbol);
                     StockMaster sm = mongoClient.getDatabase(database).getCollection("stockMaster", StockMaster.class).find(filter).first();
                     if (sm != null) {
-                        System.out.println("ISIN is missing replacing with " + sm.isin());
-                        isin = sm.isin();
+                        System.out.println("ISIN is missing replacing with " + sm.getIsin());
+                        isin = sm.getIsin();
                     }
                 }
                 Bhav sp = new Bhav(UUID.randomUUID(), symbol, series, timestamp, open, high, low, close, last, prevClose, totalTransactedQuantity, totalTransactedValue, noTrades, isin, csv.getName());
@@ -128,7 +120,7 @@ public class LoadBhavcopy extends Base {
                 .setSkipHeaderRecord(true)
                 .setHeader("timestamp", "bizdt", "segment", "src", "type", "instrumnentid", "isin", "symbol", "series", "expiryDate", "financialInstrumentExpiryDate", "stockPrice", "optionType", "name", "open", "high", "low", "close", "last", "prevClose", "underlyingPrice", "settlementPrice", "optionInterest", "changeInOptionInterest",  "totalTransactedQuantity","totalTransactedValue", "noTrades").build();
         CSVParser parser = CSVParser.parse(csv, Charset.defaultCharset(), format);
-        MongoCollection<Bhav> collection = mongoClient.getDatabase(database).getCollection(stockPriceCollection, Bhav.class);
+        MongoCollection<Bhav> collection = mongoClient.getDatabase(database).getCollection(stockPriceCollectionName, Bhav.class);
         for (CSVRecord csvRecord:parser) {
             try {
                 String symbol = csvRecord.get("symbol");
@@ -167,8 +159,8 @@ public class LoadBhavcopy extends Base {
                     Document filter = new Document("symbol", symbol);
                     StockMaster sm = mongoClient.getDatabase(database).getCollection("stockMaster", StockMaster.class).find(filter).first();
                     if (sm != null) {
-                        System.out.println("ISIN is missing replacing with " + sm.isin());
-                        isin = sm.isin();
+                        System.out.println("ISIN is missing replacing with " + sm.getIsin());
+                        isin = sm.getIsin();
                     }
                 }
                 Bhav sp = new Bhav(UUID.randomUUID(),

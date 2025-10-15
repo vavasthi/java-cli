@@ -23,8 +23,8 @@ public class DownloadBhavcopy {
     public static void main(String[] args) throws IOException, InterruptedException {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.DAY_OF_MONTH, 19);
-        calendar.set(Calendar.MONTH, 0);
-        calendar.set(Calendar.YEAR, 2015);
+        calendar.set(Calendar.MONTH, 10);
+        calendar.set(Calendar.YEAR, 2024);
         SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-YYYY");
 
         DownloadBhavcopy dbc = new DownloadBhavcopy();

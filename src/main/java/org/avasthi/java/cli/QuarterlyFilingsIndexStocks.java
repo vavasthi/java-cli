@@ -1,34 +1,33 @@
 package org.avasthi.java.cli;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
 import okhttp3.Headers;
 import okhttp3.OkHttpClient;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
+import org.avasthi.java.cli.pojos.StockMaster;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.time.Duration;
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class QuarterlyFilings extends Base {
+public class QuarterlyFilingsIndexStocks extends Base {
 
     ExecutorService executorService = Executors.newFixedThreadPool(5);
     public static void main(String[] args) throws IOException, InterruptedException {
 
 
         OkHttpClient client = new OkHttpClient();
-        QuarterlyFilings bcoh = new QuarterlyFilings();
+        QuarterlyFilingsIndexStocks bcoh = new QuarterlyFilingsIndexStocks();
         Headers headers = bcoh.allReports(client);
         System.out.println(headers.toMultimap());
         try {
@@ -44,7 +43,13 @@ public class QuarterlyFilings extends Base {
     }
 
     List<String> getListOfUrls() throws IOException {
-        List<String> urls = getUrlsForCompany("500325", new ArrayList<>());
+        MongoDatabase db = getMongoClient().getDatabase(database);
+        MongoCollection<StockMaster> collection = db.getCollection(stockMasterCollectionName, StockMaster.class);
+        List<String> urls = new ArrayList<>();
+        for (StockMaster doc : collection.find(Filters.or(Filters.eq("nifty50", true), Filters.eq("sensex", true)))) {
+
+            getUrlsForCompany(doc.getStockCode(), urls);
+        }
         return urls;
     }
     List<String> getUrlsForCompany(String stockCode, List<String> urls) {
