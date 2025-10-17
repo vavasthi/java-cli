@@ -17,8 +17,7 @@ import java.util.UUID;
 
 public class LoadBSEStockMaster extends Base{
     int[] codes = {
-            500034,
-            511218
+            500570
 };
 
 

@@ -1,5 +1,6 @@
 package org.avasthi.java.cli.pojos;
 
+import java.util.Arrays;
 import java.util.Date;
 
 public enum QuarterlyFilingsHeads {
@@ -31,7 +32,14 @@ public enum QuarterlyFilingsHeads {
   RESULT_TYPE("Result Type", String.class, DataType.STRING),
   PROFIT_AND_LOSS_OF_ASSOCIATES("Profit And Loss of Associates"),
   TAX("Tax"),
-  TOTAL_INCOME("Total Income");
+  TOTAL_INCOME("Total Income"),
+
+  BROADCAST_TIME("Broadcast Time", Date.class, DataType.DATE),
+  SYMBOL("Symbol", String.class, DataType.STRING),
+  STOCK_CODE("StockCode", String.class, DataType.STRING),
+  MSEI_SYMBOL("MSEISymbol", String.class, DataType.STRING),
+  ISIN("ISIN", String.class, DataType.STRING)
+  ;
 
   private final String head;
   private final DataType dataType;

@@ -8,9 +8,12 @@ import org.bson.conversions.Bson;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 public class GenerateDatasetCSV extends QuarterlyResultsBase {
@@ -22,6 +25,7 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
 
   private void parse() throws IOException {
 
+    SimpleDateFormat ddmmyy = new SimpleDateFormat("dd/MM/yyyy");
     MongoDatabase db = getMongoClient().getDatabase(database);
     MongoCollection<StockMaster> collection = db.getCollection(stockMasterCollectionName, StockMaster.class);
     MongoCollection<StockPrice> spCollection = db.getCollection(stockPriceCollectionName, StockPrice.class);
@@ -31,6 +35,11 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
     MongoCollection<Iip> iipCollection = db.getCollection(iipCollectionName, Iip.class);
     List<QuarterlyResults> documents = new ArrayList<>();
     for (StockMaster sm : collection.find(Filters.or(Filters.eq("nifty50", true), Filters.eq("sensex", true)))) {
+      File outdir = new File("outputs");
+      outdir.mkdirs();
+      File csv = new File(outdir,String.format("%s.csv", sm.getSymbol()));
+      PrintWriter pw = new PrintWriter(csv);
+      pw.printf("StockCode,Year,Month,Day,Open,Close,High,Low,AdjustedClose,Volume,Bonus,Dividend,EPS,Equity,PBT,PAT,Tax,PromoterShares,NonPromoterShares,cpiOverall,cpiHousing,cpiFuel,cpiVegetables,cpiGeneral,iipBasicGoods,iipCapitalGoods,iipConsumerDurables,iipElectricity,iipIntermediateGoods,iipGeneral,iipOtherManufacturing\n");
       Calendar calendar = Calendar.getInstance();
       for (StockPrice sp : spCollection.find(Filters.eq("symbol", sm.getSymbol())).sort(Filters.eq("date", 1))) {
         float bonus = 0;
@@ -51,7 +60,48 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
         float tax = 0;
         float promoterShares = 0;
         float nonPromoterShares = 0;
-        Bson dateFilter = Filters.and(Filters.eq("companyId", sm.getId()), Filters.gte("periodStarting", sp.date()));
+        Calendar c = Calendar.getInstance();
+        c.setTime(sp.date());
+        c.set(Calendar.HOUR, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        Date sDate = c.getTime();
+        c.set(Calendar.HOUR, 23);
+        c.set(Calendar.MINUTE, 59);
+        c.set(Calendar.SECOND, 59);
+        Date eDate = c.getTime();
+        Bson dateFilter = Filters.and(Filters.eq("companyId", sm.getId()), Filters.gte("broadcastTime", sDate), Filters.lte("broadcastTime", eDate));
+        Cpi cpi = cpiCollection.find(Filters.and(Filters.eq("state", "All India"), Filters.eq("month", c.get(Calendar.MONTH)), Filters.eq("year", c.get(Calendar.YEAR)))).first();
+        float cpiOverall = 0;
+        float cpiHousing = 0;
+        float cpiFuel = 0;
+        float cpiVegetables = 0;
+        float cpiGeneral = 0;
+        if (cpi != null) {
+          cpiOverall = cpi.getMiscellaneousOverall();
+          cpiHousing = cpi.getHousingOverall();
+          cpiFuel = cpi.getFuelAndLightOverall();
+          cpiVegetables = cpi.getVegetables();
+          cpiGeneral = cpi.getGeneralOverall();
+        }
+        Iip iip = iipCollection.find(Filters.and(Filters.eq("month", c.get(Calendar.MONTH)), Filters.eq("year", c.get(Calendar.YEAR)))).first();
+        float iipBasicGoods = 0;
+        float iipCapitalGoods = 0;
+        float iipConsumerDurables = 0;
+        float iipElectricity = 0;
+        float iipIntermediateGoods = 0;
+        float iipGeneral = 0;
+        float iipOtherManufacturing = 0;
+        if (iip != null) {
+
+          iipBasicGoods = iip.getBasicGoods();
+          iipCapitalGoods = iip.getCapitalGoods();
+          iipConsumerDurables = iip.getConsumerDurables();
+          iipElectricity = iip.getElectricity();
+          iipIntermediateGoods = iip.getIntermediateGoods();
+          iipGeneral = iip.getGeneral();
+          iipOtherManufacturing = iip.getOtherManufacturing();
+        }
         QuarterlyResults qr = qrCollection.find(dateFilter).sort(Filters.eq("periodStarting", 1)).first();
         if (qr != null) {
           eps = qr.getEps();
@@ -64,10 +114,43 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
         }
         else {
 
-          System.out.println("Date filters = " + dateFilter.toString());
         }
-        System.out.printf("%s,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n", sm.getSymbol(), calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH), sp.open(), sp.close(), sp.high(), sp.low(), sp.adjustedClose(), (float)sp.volume(), bonus, dividend, eps,equity,pbt,pat,tax,promoterShares,nonPromoterShares);
+        pw.printf("%s,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+                sm.getStockCode(),
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH),
+                sp.open(),
+                sp.close(),
+                sp.high(),
+                sp.low(),
+                sp.adjustedClose(),
+                (float)sp.volume(),
+                bonus,
+                dividend,
+                eps,
+                equity,
+                pbt,
+                pat,
+                tax,
+                promoterShares,
+                nonPromoterShares,
+                cpiOverall,
+                cpiHousing,
+                cpiFuel,
+                cpiVegetables,
+                cpiGeneral,
+                iipBasicGoods,
+                iipCapitalGoods,
+                iipConsumerDurables,
+                iipElectricity,
+                iipIntermediateGoods,
+                iipGeneral,
+                iipOtherManufacturing);
+
+
       }
+      pw.close();
     }
   }
 

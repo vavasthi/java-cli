@@ -37,7 +37,8 @@ public class QuarterlyResults implements Serializable {
                           String resultType,
                           float profitAndLossOfAssociates,
                           float tax,
-                          float totalIncome) {
+                          float totalIncome,
+                          Date broadcastTime) {
     this.id = id;
     this.isin = isin;
     this.companyId = companyId;
@@ -85,7 +86,7 @@ public class QuarterlyResults implements Serializable {
       }
       this.periodStarting = starting.getTime();
     }
-
+    this.broadcastTime = broadcastTime;
   }
 
   public QuarterlyResults(String isin, UUID companyId, String symbol, String stockCode, Map<QuarterlyFilingsHeads, Object> values) {
@@ -121,7 +122,8 @@ public class QuarterlyResults implements Serializable {
             getStringValue(values, QuarterlyFilingsHeads.RESULT_TYPE),
             getFloatValue(values, QuarterlyFilingsHeads.PROFIT_AND_LOSS_OF_ASSOCIATES),
             getFloatValue(values, QuarterlyFilingsHeads.TAX),
-            getFloatValue(values, QuarterlyFilingsHeads.TOTAL_INCOME));
+            getFloatValue(values, QuarterlyFilingsHeads.TOTAL_INCOME),
+            getDateValue(values, QuarterlyFilingsHeads.BROADCAST_TIME));
   }
   public QuarterlyResults() {
   }
@@ -410,6 +412,14 @@ public class QuarterlyResults implements Serializable {
     this.totalIncome = totalIncome;
   }
 
+  public Date getBroadcastTime() {
+    return broadcastTime;
+  }
+
+  public void setBroadcastTime(Date broadcastTime) {
+    this.broadcastTime = broadcastTime;
+  }
+
   @Override
   public String toString() {
     return "QuarterlyResults{" +
@@ -446,6 +456,7 @@ public class QuarterlyResults implements Serializable {
             ", profitAndLossOfAssociates=" + profitAndLossOfAssociates +
             ", tax=" + tax +
             ", totalIncome=" + totalIncome +
+            ", broadcastTime=" + broadcastTime +
             '}';
   }
 
@@ -482,4 +493,5 @@ public class QuarterlyResults implements Serializable {
   private float profitAndLossOfAssociates;
   private float tax;
   private float totalIncome;
+  private Date broadcastTime;
 }
