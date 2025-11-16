@@ -4,6 +4,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import org.avasthi.java.cli.pojos.*;
+import org.avasthi.java.cli.pojos.Currency;
 import org.bson.conversions.Bson;
 
 import java.io.File;
@@ -11,10 +12,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class GenerateDatasetCSV extends QuarterlyResultsBase {
 
@@ -33,13 +31,14 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
     MongoCollection<CorporateEvent> ceCollection = db.getCollection(corporateEventCollectionName, CorporateEvent.class);
     MongoCollection<Cpi> cpiCollection = db.getCollection(cpiCollectionName, Cpi.class);
     MongoCollection<Iip> iipCollection = db.getCollection(iipCollectionName, Iip.class);
+    MongoCollection<Currency> currencyCollection = db.getCollection(currencyCollectionName, Currency.class);
     List<QuarterlyResults> documents = new ArrayList<>();
     for (StockMaster sm : collection.find(Filters.or(Filters.eq("nifty50", true), Filters.eq("sensex", true)))) {
-      File outdir = new File("outputs");
+      File outdir = new File("/data/datasets/stockPredictor",  "outputs");
       outdir.mkdirs();
       File csv = new File(outdir,String.format("%s.csv", sm.getSymbol()));
       PrintWriter pw = new PrintWriter(csv);
-      pw.printf("StockCode,Year,Month,Day,Open,Close,High,Low,AdjustedClose,Volume,Bonus,Dividend,EPS,Equity,PBT,PAT,Tax,PromoterShares,NonPromoterShares,cpiOverall,cpiHousing,cpiFuel,cpiVegetables,cpiGeneral,iipBasicGoods,iipCapitalGoods,iipConsumerDurables,iipElectricity,iipIntermediateGoods,iipGeneral,iipOtherManufacturing\n");
+      pw.printf("StockCode,Year,Month,Day,Open,Close,High,Low,AdjustedClose,Volume,Bonus,Dividend,EPS,Equity,PBT,PAT,Tax,PromoterShares,NonPromoterShares,cpiOverall,cpiHousing,cpiFuel,cpiVegetables,cpiGeneral,iipBasicGoods,iipCapitalGoods,iipConsumerDurables,iipElectricity,iipIntermediateGoods,iipGeneral,iipOtherManufacturing,usd,gbp,eur,yen\n");
       Calendar calendar = Calendar.getInstance();
       for (StockPrice sp : spCollection.find(Filters.eq("symbol", sm.getSymbol())).sort(Filters.eq("date", 1))) {
         float bonus = 0;
@@ -115,7 +114,11 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
         else {
 
         }
-        pw.printf("%s,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+        Currency currency = currencyCollection.find(Filters.lte("date", sp.date())).sort(Filters.eq("date", -1)).first();
+        if (currency == null) {
+          currency = new Currency(UUID.randomUUID(), sp.date(), 0, 0, 0, 0);
+        }
+        pw.printf("%s,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
                 sm.getStockCode(),
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
@@ -146,7 +149,11 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
                 iipElectricity,
                 iipIntermediateGoods,
                 iipGeneral,
-                iipOtherManufacturing);
+                iipOtherManufacturing,
+                currency.usd(),
+                currency.gbp(),
+                currency.euro(),
+                currency.yen());
 
 
       }

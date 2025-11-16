@@ -4,17 +4,24 @@ import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
 import kotlin.Pair;
 import okhttp3.Headers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.avasthi.java.cli.pojos.CorporateEvent;
+import org.avasthi.java.cli.pojos.Currency;
+import org.avasthi.java.cli.pojos.StockMaster;
+import org.avasthi.java.cli.pojos.StockPrice;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -35,6 +42,7 @@ public class Base {
     protected final String quarterlyResultsCollectionName = "quarterlyResults";
     protected final String cpiCollectionName = "cpi";
     protected final String iipCollectionName = "iip";
+  protected final String currencyCollectionName = "currency";
 
     protected MongoClient getMongoClient() {
         CodecRegistry pojoCodecRegistry = fromRegistries(
@@ -50,9 +58,9 @@ public class Base {
         );
     }
     protected WebDriver getWebDriver() {
-        return getWebDriver(true);
+        return getChromeDriver(true);
     }
-    protected WebDriver getWebDriver(boolean headless) {
+    protected WebDriver getChromeDriver(boolean headless) {
         Map<String, Object> prefs = new HashMap<>();
         prefs.put("download.prompt_for_download", false);
         prefs.put("download.directory_upgrade", true);
@@ -74,6 +82,27 @@ public class Base {
         chromeOptions.addArguments("--disable-extensions");
         return new ChromeDriver(chromeOptions);
     }
+  protected WebDriver getCFirefoxDriver(boolean headless) {
+    Map<String, Object> prefs = new HashMap<>();
+    prefs.put("download.prompt_for_download", false);
+    prefs.put("download.directory_upgrade", true);
+    prefs.put("safebrowsing_for_trusted_sources_enabled", false);
+    prefs.put("safebrowsing.enabled",false);
+    prefs.put("excludeSwitches", Arrays.asList("enable-automation"));
+
+    FirefoxOptions firefoxOptions = new FirefoxOptions();
+    if (headless) {
+
+      firefoxOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--headless=new");
+    }
+    else {
+
+      firefoxOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--disable-blink-features=AutomationControlled");
+    }
+    firefoxOptions.setAcceptInsecureCerts(true);
+    firefoxOptions.addArguments("--disable-extensions");
+    return new FirefoxDriver(firefoxOptions);
+  }
     protected Headers allReports(OkHttpClient client) {
         String url = "https://www.nseindia.com/companies-listing/corporate-filings-financial-results";
         Request request = new Request.Builder()
@@ -112,6 +141,18 @@ public class Base {
         }
         return builder;
     }
+  protected MongoCollection<StockPrice> getStockPriceCollection() {
+    return getMongoClient().getDatabase(database).getCollection(stockPriceCollectionName, StockPrice.class);
+  }
+  protected MongoCollection<CorporateEvent> getCorporateEventsCollection() {
+    return getMongoClient().getDatabase(database).getCollection(corporateEventCollectionName, CorporateEvent.class);
+  }
+  protected MongoCollection<StockMaster> getStockMasterCollection() {
+    return getMongoClient().getDatabase(database).getCollection(stockMasterCollectionName, StockMaster.class);
+  }
+  protected MongoCollection<Currency> getCurrencyCollection() {
+    return getMongoClient().getDatabase(database).getCollection(currencyCollectionName, Currency.class);
+  }
 
 
 }

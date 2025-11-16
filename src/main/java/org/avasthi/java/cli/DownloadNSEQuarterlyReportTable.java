@@ -49,7 +49,7 @@ public class DownloadNSEQuarterlyReportTable extends Base {
     private void download(String symbol) throws FileNotFoundException {
 
         String url = "https://www.nseindia.com/api/corporates-financial-results?index=equities&from_date=01-01-1990&to_date=15-10-2025&symbol=%s&period=Quarterly";
-        WebDriver driver = getWebDriver(false);
+        WebDriver driver = getChromeDriver(false);
         driver.get("https://www.nseindia.com/companies-listing/corporate-filings-financial-results");
         WebElement input = new WebDriverWait(driver, Duration.ofMinutes(10)).until(ExpectedConditions.elementToBeClickable(By.xpath("/html/body/div[12]/div[1]/div/section/div/div/div[2]/div/div[2]/div[1]/div[1]/div[1]/div/span/input")));
 

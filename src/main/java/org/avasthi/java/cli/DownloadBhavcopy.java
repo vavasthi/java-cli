@@ -1,7 +1,6 @@
 package org.avasthi.java.cli;
 
 import com.google.gson.Gson;
-import org.checkerframework.checker.units.qual.C;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
