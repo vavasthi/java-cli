@@ -43,7 +43,7 @@ public class DownloadYahooFinance extends Base {
   }
   private void downloadStockPrices(String symbol,
                                    String series) throws InterruptedException, IOException {
-    WebDriver driver = getChromeDriver(true);
+    WebDriver driver = getWebDriver();
     try {
 
       String url = String.format("https://finance.yahoo.com/quote/%s.NS/history/?period1=1758672000&period2=1763164800", symbol);

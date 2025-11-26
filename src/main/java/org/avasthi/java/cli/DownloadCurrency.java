@@ -28,7 +28,7 @@ public class DownloadCurrency extends Base {
     dbc.downloadCurrency();
   }
   private void downloadCurrency() throws InterruptedException, IOException {
-    WebDriver driver = getChromeDriver(true);
+    WebDriver driver = getWebDriver();
 
     File dataDirectory = new File("/data/datasets/stockPredictor/currency");
     final List<Currency> currencyList = new ArrayList<>();
