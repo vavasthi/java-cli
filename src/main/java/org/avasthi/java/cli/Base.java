@@ -24,10 +24,7 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
@@ -58,10 +55,9 @@ public class Base {
         );
     }
     protected WebDriver getWebDriver() {
-        return getChromeDriver(true);
+        return getWebDriver(true, new HashMap<>());
     }
-    protected WebDriver getChromeDriver(boolean headless) {
-        Map<String, Object> prefs = new HashMap<>();
+    protected WebDriver getWebDriver(boolean headless, Map<String, Object> prefs) {
         prefs.put("download.prompt_for_download", false);
         prefs.put("download.directory_upgrade", true);
         prefs.put("safebrowsing_for_trusted_sources_enabled", false);

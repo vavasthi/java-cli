@@ -23,7 +23,9 @@ import java.io.*;
 import java.net.SocketTimeoutException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
@@ -49,7 +51,7 @@ public class DownloadNSEQuarterlyReportTable extends Base {
     private void download(String symbol) throws FileNotFoundException {
 
         String url = "https://www.nseindia.com/api/corporates-financial-results?index=equities&from_date=01-01-1990&to_date=15-10-2025&symbol=%s&period=Quarterly";
-        WebDriver driver = getChromeDriver(false);
+        WebDriver driver = getWebDriver(false, new HashMap<>());
         driver.get("https://www.nseindia.com/companies-listing/corporate-filings-financial-results");
         WebElement input = new WebDriverWait(driver, Duration.ofMinutes(10)).until(ExpectedConditions.elementToBeClickable(By.xpath("/html/body/div[12]/div[1]/div/section/div/div/div[2]/div/div[2]/div[1]/div[1]/div[1]/div/span/input")));
 
