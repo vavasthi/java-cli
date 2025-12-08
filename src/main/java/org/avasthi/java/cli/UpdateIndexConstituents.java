@@ -3,13 +3,7 @@ package org.avasthi.java.cli;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import org.avasthi.java.cli.pojos.HeadDictionary;
-import org.avasthi.java.cli.pojos.QuarterlyFilingsHeads;
 import org.avasthi.java.cli.pojos.StockMaster;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 import java.io.*;
 import java.text.ParseException;
@@ -118,7 +112,7 @@ public class UpdateIndexConstituents extends Base {
       }
       else {
         if (niftyIsin.contains(document.getIsin())) {
-          document.setNifty50(true);
+          document.setNifty(true);
         }
         if (sensexIsin.contains(document.getIsin())) {
           document.setSensex(true);

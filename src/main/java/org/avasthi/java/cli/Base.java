@@ -10,10 +10,8 @@ import okhttp3.Headers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.avasthi.java.cli.pojos.CorporateEvent;
+import org.avasthi.java.cli.pojos.*;
 import org.avasthi.java.cli.pojos.Currency;
-import org.avasthi.java.cli.pojos.StockMaster;
-import org.avasthi.java.cli.pojos.StockPrice;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -30,54 +28,59 @@ import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 public class Base {
-    protected final String mongoUrl = "mongodb://localhost";
-    protected final String database = "capitalMarkets";
-    protected final MongoClient mongoClient = getMongoClient();
-    protected final String stockMasterCollectionName = "stockMaster";
-    protected final String stockPriceCollectionName = "stockPrice";
-    protected final String corporateEventCollectionName = "corporateEvents";
-    protected final String quarterlyResultsCollectionName = "quarterlyResults";
-    protected final String cpiCollectionName = "cpi";
-    protected final String iipCollectionName = "iip";
+  protected final String mongoUrl = "mongodb://localhost";
+  protected final String database = "capitalMarkets";
+  protected final MongoClient mongoClient = getMongoClient();
+  protected final String stockMasterCollectionName = "stockMaster";
+  protected final String stockPriceCollectionName = "stockPrice";
+  protected final String optionPriceCollectionName = "optionPrice";
+  protected final String indexPriceCollectionName = "indexPrice";
+  protected final String corporateEventCollectionName = "corporateEvents";
+  protected final String minuteTickCollectionName = "minuteTick";
+  protected final String tradeTickCollectionName = "tradeTick";
+  protected final String tradeTickDepthCollectionName = "tradeTickDepth";
+  protected final String quarterlyResultsCollectionName = "quarterlyResults";
+  protected final String cpiCollectionName = "cpi";
+  protected final String iipCollectionName = "iip";
   protected final String currencyCollectionName = "currency";
 
-    protected MongoClient getMongoClient() {
-        CodecRegistry pojoCodecRegistry = fromRegistries(
-                MongoClientSettings.getDefaultCodecRegistry(),
-                fromProviders(PojoCodecProvider.builder().automatic(true).build())
-        );
+  protected MongoClient getMongoClient() {
+    CodecRegistry pojoCodecRegistry = fromRegistries(
+            MongoClientSettings.getDefaultCodecRegistry(),
+            fromProviders(PojoCodecProvider.builder().automatic(true).build())
+    );
 
-        return MongoClients.create(
-                MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoUrl))
-                        .codecRegistry(pojoCodecRegistry)
-                        .uuidRepresentation(UuidRepresentation.JAVA_LEGACY)
-                        .build()
-        );
+    return MongoClients.create(
+            MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoUrl))
+                    .codecRegistry(pojoCodecRegistry)
+                    .uuidRepresentation(UuidRepresentation.JAVA_LEGACY)
+                    .build()
+    );
+  }
+  protected WebDriver getWebDriver() {
+    return getWebDriver(true, new HashMap<>());
+  }
+  protected WebDriver getWebDriver(boolean headless, Map<String, Object> prefs) {
+    prefs.put("download.prompt_for_download", false);
+    prefs.put("download.directory_upgrade", true);
+    prefs.put("safebrowsing_for_trusted_sources_enabled", false);
+    prefs.put("safebrowsing.enabled",false);
+    prefs.put("excludeSwitches", Arrays.asList("enable-automation"));
+
+    ChromeOptions chromeOptions = new ChromeOptions();
+    if (headless) {
+
+      chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--headless=new");
     }
-    protected WebDriver getWebDriver() {
-        return getWebDriver(true, new HashMap<>());
+    else {
+
+      chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--disable-blink-features=AutomationControlled");
     }
-    protected WebDriver getWebDriver(boolean headless, Map<String, Object> prefs) {
-        prefs.put("download.prompt_for_download", false);
-        prefs.put("download.directory_upgrade", true);
-        prefs.put("safebrowsing_for_trusted_sources_enabled", false);
-        prefs.put("safebrowsing.enabled",false);
-        prefs.put("excludeSwitches", Arrays.asList("enable-automation"));
-
-        ChromeOptions chromeOptions = new ChromeOptions();
-        if (headless) {
-
-            chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--headless=new");
-        }
-        else {
-
-            chromeOptions.addArguments("--no-sandbox", "disable-search-engine-choice-screen", "--disable-blink-features=AutomationControlled");
-        }
-        chromeOptions.setAcceptInsecureCerts(true);
-        chromeOptions.setExperimentalOption("prefs", prefs);
-        chromeOptions.addArguments("--disable-extensions");
-        return new ChromeDriver(chromeOptions);
-    }
+    chromeOptions.setAcceptInsecureCerts(true);
+    chromeOptions.setExperimentalOption("prefs", prefs);
+    chromeOptions.addArguments("--disable-extensions");
+    return new ChromeDriver(chromeOptions);
+  }
   protected WebDriver getCFirefoxDriver(boolean headless) {
     Map<String, Object> prefs = new HashMap<>();
     prefs.put("download.prompt_for_download", false);
@@ -99,52 +102,67 @@ public class Base {
     firefoxOptions.addArguments("--disable-extensions");
     return new FirefoxDriver(firefoxOptions);
   }
-    protected Headers allReports(OkHttpClient client) {
-        String url = "https://www.nseindia.com/companies-listing/corporate-filings-financial-results";
-        Request request = new Request.Builder()
-                .url(url)
-                .headers(defaultHeaders(new Headers.Builder()).build())
-                .get()
-                .build();
-        Headers.Builder nextRequestHeaderBuilder = new Headers.Builder();
-        try (Response response = client.newCall(request).execute()) {
-            Headers headers = response.headers();
-            for (Iterator<Pair<String, String>> it = headers.iterator(); it.hasNext(); ) {
-                Pair<String, String> kv = it.next();
-                if (kv.getFirst().equalsIgnoreCase("set-cookie")) {
-                    nextRequestHeaderBuilder.add("Cookie", kv.getSecond());
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+  protected Headers allReports(OkHttpClient client) {
+    String url = "https://www.nseindia.com/companies-listing/corporate-filings-financial-results";
+    Request request = new Request.Builder()
+            .url(url)
+            .headers(defaultHeaders(new Headers.Builder()).build())
+            .get()
+            .build();
+    Headers.Builder nextRequestHeaderBuilder = new Headers.Builder();
+    try (Response response = client.newCall(request).execute()) {
+      Headers headers = response.headers();
+      for (Iterator<Pair<String, String>> it = headers.iterator(); it.hasNext(); ) {
+        Pair<String, String> kv = it.next();
+        if (kv.getFirst().equalsIgnoreCase("set-cookie")) {
+          nextRequestHeaderBuilder.add("Cookie", kv.getSecond());
         }
-        return nextRequestHeaderBuilder.build();
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+    return nextRequestHeaderBuilder.build();
+  }
 
-    protected Headers.Builder defaultHeaders(Headers.Builder builder) {
+  protected Headers.Builder defaultHeaders(Headers.Builder builder) {
 
-        builder.add("Accept-Encoding", "gzip, deflate, br, zstd");
-        builder.add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
-        return builder;
-    }
+    builder.add("Accept-Encoding", "gzip, deflate, br, zstd");
+    builder.add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
+    return builder;
+  }
 
-    protected Headers.Builder allHeaders(Headers.Builder builder,
+  protected Headers.Builder allHeaders(Headers.Builder builder,
                                        Headers headers) {
-        builder = defaultHeaders(builder);
-        for (Iterator<Pair<String, String>> it = headers.iterator(); it.hasNext(); ) {
-            Pair<String, String> kv = it.next();
-            builder.add(kv.getFirst(), kv.getSecond());
-        }
-        return builder;
+    builder = defaultHeaders(builder);
+    for (Iterator<Pair<String, String>> it = headers.iterator(); it.hasNext(); ) {
+      Pair<String, String> kv = it.next();
+      builder.add(kv.getFirst(), kv.getSecond());
     }
+    return builder;
+  }
   protected MongoCollection<StockPrice> getStockPriceCollection() {
     return getMongoClient().getDatabase(database).getCollection(stockPriceCollectionName, StockPrice.class);
+  }
+  protected MongoCollection<OptionPrice> getOptionPriceCollection() {
+    return getMongoClient().getDatabase(database).getCollection(optionPriceCollectionName, OptionPrice.class);
+  }
+  protected MongoCollection<IndexPrice> getIndexPriceCollection() {
+    return getMongoClient().getDatabase(database).getCollection(indexPriceCollectionName, IndexPrice.class);
   }
   protected MongoCollection<CorporateEvent> getCorporateEventsCollection() {
     return getMongoClient().getDatabase(database).getCollection(corporateEventCollectionName, CorporateEvent.class);
   }
   protected MongoCollection<StockMaster> getStockMasterCollection() {
     return getMongoClient().getDatabase(database).getCollection(stockMasterCollectionName, StockMaster.class);
+  }
+  protected MongoCollection<MinuteTick> getMinuteTickCollection() {
+    return getMongoClient().getDatabase(database).getCollection(minuteTickCollectionName, MinuteTick.class);
+  }
+  protected MongoCollection<TradeTick> getTradeTickCollection() {
+    return getMongoClient().getDatabase(database).getCollection(tradeTickCollectionName, TradeTick.class);
+  }
+  protected MongoCollection<TradeTickDepth> getTradeTickDepthCollection() {
+    return getMongoClient().getDatabase(database).getCollection(tradeTickDepthCollectionName, TradeTickDepth.class);
   }
   protected MongoCollection<Currency> getCurrencyCollection() {
     return getMongoClient().getDatabase(database).getCollection(currencyCollectionName, Currency.class);

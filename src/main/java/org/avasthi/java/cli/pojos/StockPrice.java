@@ -11,6 +11,10 @@ public record StockPrice(UUID _id,
                          float high,
                          float low,
                          float close,
+                         float last,
+                         float prevClose,
                          float adjustedClose,
-                         float volume) {
+                         float transactedQuantity,
+                         float volume,
+                         String isin) {
 }

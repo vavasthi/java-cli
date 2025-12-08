@@ -8,8 +8,6 @@ import org.bson.Document;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 import java.time.*;
@@ -32,7 +30,7 @@ public class DownloadYahooFinance extends Base {
   }
   private void downloadStockPrices() throws InterruptedException, IOException {
     for (StockMaster sm : getStockMasterCollection().find().sort(new Document("symbol", 1))) {
-      if (sm.isNifty50() || sm.isSensex()) {
+      if (sm.isNifty() || sm.isSensex()) {
 
         downloadStockPrices(sm.getSymbol(), "EQ");
       }
@@ -88,9 +86,9 @@ public class DownloadYahooFinance extends Base {
           catch (NumberFormatException nfe) {
 
           }
-//                System.out.println(String.format("%s,%f,%f,%f,%f,%f,%d",date, open, high, low, close, adjustedClose, volume));
-          StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, date, series, open, high, low, close, adjustedClose, volume == null ? 0 : volume);
-          stockPriceList.add(sp);
+          //                System.out.println(String.format("%s,%f,%f,%f,%f,%f,%d",date, open, high, low, close, adjustedClose, volume));
+          //StockPrice sp = new StockPrice(UUID.randomUUID(), symbol, date, series, open, high, low, close, close, open, adjustedClose, -1, volume == null ? 0 : volume);
+          //stockPriceList.add(sp);
           if (stockPriceList.size() > 10000) {
             insertRecords(stockPriceList);
           }

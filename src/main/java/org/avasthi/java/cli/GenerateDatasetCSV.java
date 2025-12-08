@@ -127,7 +127,7 @@ public class GenerateDatasetCSV extends QuarterlyResultsBase {
                 sp.close(),
                 sp.high(),
                 sp.low(),
-                sp.adjustedClose(),
+                sp.close(),
                 (float)sp.volume(),
                 bonus,
                 dividend,

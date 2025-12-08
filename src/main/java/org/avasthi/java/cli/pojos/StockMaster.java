@@ -4,6 +4,10 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.UUID;
 
+enum Type {
+  Stock,
+  Index
+}
 public class StockMaster implements Serializable {
 
   public StockMaster(UUID id,
@@ -26,7 +30,36 @@ public class StockMaster implements Serializable {
     this.isin = isin;
     this.faceValue = faceValue;
     this.stockCode = stockCode;
+    this.type = Type.Stock;
   }
+
+  public StockMaster(UUID id,
+                     String symbol,
+                     String name,
+                     String series,
+                     Date dateOfListing,
+                     double paidUpValue,
+                     int marketLot,
+                     String isin,
+                     double faceValue,
+                     String stockCode,
+                     boolean nifty,
+                     boolean sensex) {
+    this.id = id;
+    this.symbol = symbol;
+    this.name = name;
+    this.series = series;
+    this.dateOfListing = dateOfListing;
+    this.paidUpValue = paidUpValue;
+    this.marketLot = marketLot;
+    this.isin = isin;
+    this.faceValue = faceValue;
+    this.stockCode = stockCode;
+    this.nifty = nifty;
+    this.sensex = sensex;
+    this.type = Type.Stock;
+  }
+
   public StockMaster() {
 
   }
@@ -111,12 +144,12 @@ public class StockMaster implements Serializable {
     this.stockCode = stockCode;
   }
 
-  public boolean isNifty50() {
-    return nifty50;
+  public boolean isNifty() {
+    return nifty;
   }
 
-  public void setNifty50(boolean nifty50) {
-    this.nifty50 = nifty50;
+  public void setNifty(boolean nifty) {
+    this.nifty = nifty;
   }
 
   public boolean isSensex() {
@@ -127,10 +160,26 @@ public class StockMaster implements Serializable {
     this.sensex = sensex;
   }
 
+  public int getZerodhaInstrumentToken() {
+    return zerodhaInstrumentToken;
+  }
+
+  public void setZerodhaInstrumentToken(int zerodhaInstrumentToken) {
+    this.zerodhaInstrumentToken = zerodhaInstrumentToken;
+  }
+
+  public Type getType() {
+    return type;
+  }
+
+  public void setType(Type type) {
+    this.type = type;
+  }
+
   @Override
   public String toString() {
     return "StockMaster{" +
-            "_id=" + id +
+            "id=" + id +
             ", symbol='" + symbol + '\'' +
             ", name='" + name + '\'' +
             ", series='" + series + '\'' +
@@ -140,8 +189,10 @@ public class StockMaster implements Serializable {
             ", isin='" + isin + '\'' +
             ", faceValue=" + faceValue +
             ", stockCode='" + stockCode + '\'' +
-            ", nifty50=" + nifty50 +
+            ", nifty=" + nifty +
             ", sensex=" + sensex +
+            ", zerodhaInstrumentToken=" + zerodhaInstrumentToken +
+            ", type=" + type +
             '}';
   }
 
@@ -155,6 +206,8 @@ public class StockMaster implements Serializable {
   private String isin;
   private double faceValue;
   private String stockCode;
-  private boolean nifty50;
+  private boolean nifty;
   private boolean sensex;
+  private int zerodhaInstrumentToken;
+  private Type type;
 }
