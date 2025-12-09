@@ -16,10 +16,9 @@ public record TradeTick(UUID id,
                         float low,
                         float close,
                         float change,
-                        Date timestamp,
                         float openInterest,
-                        float openInterestHigh,
-                        float openInterestLow,
+                        float openInterestDayHigh,
+                        float openInterestDayLow,
                         Date exchangeTimestamp) {
 
 }
