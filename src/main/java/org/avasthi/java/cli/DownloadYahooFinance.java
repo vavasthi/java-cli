@@ -44,7 +44,7 @@ public class DownloadYahooFinance extends Base {
     WebDriver driver = getWebDriver();
     try {
 
-      String url = String.format("https://finance.yahoo.com/quote/%s.NS/history/?period1=1758672000&period2=1763164800", symbol);
+      String url = String.format("https://finance.yahoo.com/quote/%s.NS/history/?period1=1764115200&period2=1768453030", symbol);
       driver.manage().timeouts().pageLoadTimeout(Duration.ofMinutes(2)).implicitlyWait(Duration.ofMinutes(1));
       System.out.print("Loading " + symbol + " ");
       driver.get(url);

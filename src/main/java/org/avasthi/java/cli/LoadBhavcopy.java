@@ -37,7 +37,7 @@ public class LoadBhavcopy extends Base {
   private final String newFnOBhavcopyPattern = "BhavCopy_NSE_FO.*\\.csv";
   public static void main(String[] args) throws IOException, InterruptedException, ParseException {
     LoadBhavcopy lbc = new LoadBhavcopy();
-    lbc.parseFnOBhavcopy();
+    lbc.parseBhavcopy();
   }
   private void parseBhavcopy() throws IOException {
 
@@ -55,14 +55,31 @@ public class LoadBhavcopy extends Base {
         }
       }
       if (stockPriceList.size() > 1000) {
-        getStockPriceCollection().insertMany(stockPriceList);
-        stockPriceList.clear();
+        writeRecords(stockPriceList);
       }
     }
     if (stockPriceList.size() > 0) {
+      writeRecords(stockPriceList);
+    }
+  }
+  private void writeRecords(List<StockPrice> stockPriceList) {
+
+    try {
+
       getStockPriceCollection().insertMany(stockPriceList);
       stockPriceList.clear();
     }
+    catch (Exception e1) {
+        for (StockPrice sp : stockPriceList) {
+          try {
+            getStockPriceCollection().insertOne(sp);
+          }
+          catch (Exception e) {
+
+          }
+        }
+    }
+    stockPriceList.clear();
   }
   private void parseFnOBhavcopy() throws IOException {
 

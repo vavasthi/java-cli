@@ -1,6 +1,7 @@
 package org.avasthi.java.cli;
 
 import com.google.gson.*;
+import com.google.gson.stream.MalformedJsonException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -12,6 +13,8 @@ import org.avasthi.java.cli.pojos.*;
 import org.bson.Document;
 
 import java.io.*;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -32,6 +35,8 @@ public class ParseAndUploadTickData extends Base {
     alternates.put(136236548, Arrays.asList(1270529));
     alternates.put(136308228, Arrays.asList(2714625));
     alternates.put(136330244, Arrays.asList(2953217));
+    alternates.put(2914817, Arrays.asList(2953217));
+    alternates.put(128053508, Arrays.asList(408065));
     stockMasterMap.clear();
     getStockMasterCollection().find().forEach(sm -> {
       if (sm.getZerodhaInstrumentToken() != 0) {
@@ -107,12 +112,13 @@ public class ParseAndUploadTickData extends Base {
       minuteTickList.clear();
     }
   }
-  private void parseTradeTicks() throws FileNotFoundException {
+  private void parseTradeTicks() throws IOException {
 
     System.out.println("Stock Master Map containing instrument token" + stockMasterMap.size());
     File tradeTickDirectory = new File("/data/datasets/Bhavcopy/ticks", "ticks");
 
-    Gson gson = new Gson();
+    Gson gson = new GsonBuilder()
+            .create();
     List<TradeTick> tradeTickList = new ArrayList<>();
     List<TradeTickDepth> tradeTickDepthList = new ArrayList<>();
     final MongoCollection<TradeTick> tradeTickCoillection = getTradeTickCollection();
@@ -124,9 +130,11 @@ public class ParseAndUploadTickData extends Base {
         return file.getAbsolutePath().endsWith("csv");
       }
     })) {
+        String subdir = null;
+        FileReader currentFile = new FileReader(f);
       try {
 
-        JsonArray ja = gson.fromJson(new FileReader(f), JsonArray.class);
+        JsonArray ja = gson.fromJson(currentFile, JsonArray.class);
         for (JsonElement je : ja.asList()) {
 
           JsonObject jo = je.getAsJsonObject();
@@ -137,6 +145,8 @@ public class ParseAndUploadTickData extends Base {
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
             LocalDateTime ldt = LocalDateTime.parse(jo.get("exchange_timestamp").getAsString(), dtf);
             Date exchangeTimestamp = new Date(ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+            DateTimeFormatter pdf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            subdir = pdf.format(ldt);
             System.out.println(exchangeTimestamp);
             boolean tradable = jo.get("tradable").getAsBoolean();
             float lastPrice = jo.get("last_price").getAsFloat();
@@ -184,7 +194,7 @@ public class ParseAndUploadTickData extends Base {
                 buyDepth.add(new SingleDepthRecord(quantiity, price, orders));
               }
               List<SingleDepthRecord> sellDepth = new ArrayList<>();
-              for (JsonElement depthJe : buyArray.asList()) {
+              for (JsonElement depthJe : sellArray.asList()) {
                 JsonObject depthJo = depthJe.getAsJsonObject();
                 float price = depthJo.get("price").getAsFloat();
                 float quantiity = depthJo.get("quantity").getAsFloat();
@@ -230,13 +240,27 @@ public class ParseAndUploadTickData extends Base {
             }
           }
         }
+        if (subdir != null) {
+          File archiveDirectory = new File("/data/datasets/Bhavcopy/ticks-archive/ticks", subdir);
+          archiveDirectory.mkdir();
+          currentFile.close();
+          try {
+
+            Files.move(f.toPath(), archiveDirectory.toPath());
+          }
+          catch (FileAlreadyExistsException faee) {
+
+            Files.move(f.toPath(), new File(archiveDirectory, UUID.randomUUID().toString()+".csv").toPath());
+          }
+        }
       }
       catch (NumberFormatException nfe) {
         System.out.println(f.getName());
         throw nfe;
       }
       catch (JsonSyntaxException jse) {
-        System.out.println(f.getAbsolutePath());
+        System.out.println("File Syntax Issue" + f.getAbsolutePath());
+        jse.printStackTrace();
         throw jse;
       }
       catch (NullPointerException npe) {
@@ -253,6 +277,7 @@ public class ParseAndUploadTickData extends Base {
         tradeTickList.clear();
         tradeTickDepthList.clear();
       }
+
     }
   }
   private StockMaster stockMasterContains(int instrument_token) {

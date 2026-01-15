@@ -1,6 +1,7 @@
 package org.avasthi.java.cli;
 
 import com.google.gson.*;
+import org.apache.hc.core5.net.URIBuilder;
 import org.avasthi.java.cli.pojos.IndexPrice;
 import org.avasthi.java.cli.pojos.IndexSymbols;
 import org.openqa.selenium.*;
@@ -15,6 +16,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.text.ParseException;
@@ -23,11 +26,10 @@ import java.time.Duration;
 import java.util.*;
 
 public class DownloadBhavcopy extends Base{
-  public static void main(String[] args) throws IOException, InterruptedException {
+  public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException {
 
     DownloadBhavcopy dbc = new DownloadBhavcopy();
-    Calendar today = Calendar.getInstance();
-    dbc.downloadIndexPrices();
+    dbc.downloadEquityBhavCopy();
   }
   private void download() throws UnsupportedEncodingException, InterruptedException {
 
@@ -39,6 +41,10 @@ public class DownloadBhavcopy extends Base{
     calendar.set(Calendar.DAY_OF_MONTH, 7);
     calendar.set(Calendar.MONTH, Calendar.JULY);
     calendar.set(Calendar.YEAR, 2000);
+    // Incremental
+    calendar.set(Calendar.DAY_OF_MONTH, 28);
+    calendar.set(Calendar.MONTH, Calendar.NOVEMBER);
+    calendar.set(Calendar.YEAR, 2024);
     SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-YYYY");
     File downloadDir = new File("/data/datasets/Bhavcopy", "FnO");
     Map<String, Object> chromePrefs = new HashMap<String, Object>();
@@ -55,7 +61,7 @@ public class DownloadBhavcopy extends Base{
     Calendar endDate = Calendar.getInstance();
     while(calendar.before(endDate)) {
       System.out.printf("Downloading for %s\n", calendar.getTime());
-      downloadIndexPrices(driver, calendar, ddmmyyFormat);
+      downloadFAndO(driver, calendar, ddmmyyFormat);
       calendar.add(Calendar.DAY_OF_MONTH, 1);
     }
   }
@@ -73,9 +79,9 @@ public class DownloadBhavcopy extends Base{
                              SimpleDateFormat ddmmyyFormat) throws InterruptedException, UnsupportedEncodingException {
 
     Calendar newFormatDate = Calendar.getInstance();
-    newFormatDate.set(Calendar.DAY_OF_MONTH, 7);
-    newFormatDate.set(Calendar.MONTH, Calendar.JULY);
-    newFormatDate.set(Calendar.YEAR, 2024);
+    newFormatDate.set(Calendar.DAY_OF_MONTH, 26);
+    newFormatDate.set(Calendar.MONTH, Calendar.NOVEMBER);
+    newFormatDate.set(Calendar.YEAR, 2025);
 
     String archives = "%5B%7B%22name%22%3A%22F%26O%20-%20Bhavcopy(csv)%22%2C%22type%22%3A%22archives%22%2C%22category%22%3A%22derivatives%22%2C%22section%22%3A%22equity%22%7D%5D&date="+ddmmyyFormat.format(calendar.getTime()) +"&type=equity&mode=single";
     if (calendar.after(newFormatDate)) {
@@ -84,7 +90,48 @@ public class DownloadBhavcopy extends Base{
     String url = String.format("https://www.nseindia.com/api/reports?archives=%s", archives);
     System.out.println(url);
     driver.get(url);
+    System.out.println(driver.getPageSource());
     Thread.sleep(250);
+  }
+  private void downloadEquityBhavCopy() throws URISyntaxException {
+    File downloadDir = new File("/data/datasets/Bhavcopy", "Stocks");
+    Map<String, Object> chromePrefs = new HashMap<String, Object>();
+    // Set the default download directory
+    chromePrefs.put("download.default_directory", downloadDir.getAbsolutePath());
+    // Disable the download prompt to automatically save files
+    chromePrefs.put("download.prompt_for_download", false);
+    // Disable the built-in PDF viewer, forcing external handling (download)
+    chromePrefs.put("plugins.always_open_pdf_externally", true);
+    // Optional: disable popup blocking
+    chromePrefs.put("profile.default_content_settings.popups", 0);
+    WebDriver driver = getWebDriver(false, chromePrefs);
+    driver.get("https://www.nseindia.com/all-reports#cr_equity_archives");
+    Calendar calendar = Calendar.getInstance();
+    calendar.set(Calendar.DAY_OF_MONTH, 26);
+    calendar.set(Calendar.MONTH, Calendar.NOVEMBER);
+    calendar.set(Calendar.YEAR, 2025);
+
+    Calendar today = Calendar.getInstance();
+    while (calendar.before(today)) {
+      downloadEquityBhavCopy(driver, calendar);
+      calendar.add(Calendar.DAY_OF_MONTH, 1);
+    }
+  }
+  private void downloadEquityBhavCopy(WebDriver driver,
+                                Calendar calendar) throws URISyntaxException {
+    SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-yyyy");
+    String name = "[{\"name\":\"CM-UDiFF Common Bhavcopy Final (zip)\",\"type\":\"daily-reports\",\"category\":\"capital-market\",\"section\":\"equities\"}]";
+    String date = ddmmyyFormat.format(calendar.getTime());
+    String type = "equities";
+    String mode = "single";
+    URIBuilder uriBuilder = new URIBuilder("https://www.nseindia.com/api/reports");
+    uriBuilder.addParameter("archives", name);
+    uriBuilder.addParameter("date", date);
+    uriBuilder.addParameter("type", type);
+    uriBuilder.addParameter("mode", mode);
+    URI uri = uriBuilder.build();
+    System.out.println(uri.toString());
+    driver.get(uri.toString());
   }
   private void downloadIndexPrices() {
 
@@ -100,8 +147,8 @@ public class DownloadBhavcopy extends Base{
     chromePrefs.put("profile.default_content_settings.popups", 0);
     WebDriver driver = getWebDriver(false, chromePrefs);
     Calendar now = Calendar.getInstance();
-    SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-YYYY");
-    int year = 1980;
+    SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-yyyy");
+    int year = 1984;
 
     List<IndexPrice> indexPriceList = new ArrayList<>();
     while(getFirstDayOfYear(year).before(now)) {
@@ -171,8 +218,8 @@ public class DownloadBhavcopy extends Base{
                              SimpleDateFormat ddmmyyFormat) throws InterruptedException, UnsupportedEncodingException {
 
     Calendar newFormatDate = Calendar.getInstance();
-    newFormatDate.set(Calendar.DAY_OF_MONTH, 7);
-    newFormatDate.set(Calendar.MONTH, Calendar.JULY);
+    newFormatDate.set(Calendar.DAY_OF_MONTH, 25);
+    newFormatDate.set(Calendar.MONTH, Calendar.DECEMBER);
     newFormatDate.set(Calendar.YEAR, 2024);
 
     String archives = "%5B%7B%22name%22%3A%22Daily%20Snapshot%22%2C%22type%22%3A%22archives%22%2C%22category%22%3A%22capital-market%22%2C%22section%22%3A%22indices%22%7D%5D&date="+ddmmyyFormat.format(calendar.getTime()) +"&type=indices&mode=single";
