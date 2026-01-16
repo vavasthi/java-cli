@@ -52,6 +52,7 @@ public class LoadBhavcopy extends Base {
           parseAndLoadOldBhavcopy(file, stockMasterMap, stockPriceList);
         } else if (Pattern.matches(newBhavcopyPattern, file.getName())) {
           parseAndLoadNewBhavcopy(file, stockMasterMap, stockPriceList);
+
         }
       }
       if (stockPriceList.size() > 1000) {
@@ -64,15 +65,16 @@ public class LoadBhavcopy extends Base {
   }
   private void writeRecords(List<StockPrice> stockPriceList) {
 
+    MongoCollection<StockPrice> collection = getStockPriceCollection();
     try {
 
-      getStockPriceCollection().insertMany(stockPriceList);
+      collection.insertMany(stockPriceList);
       stockPriceList.clear();
     }
     catch (Exception e1) {
         for (StockPrice sp : stockPriceList) {
           try {
-            getStockPriceCollection().insertOne(sp);
+            collection.insertOne(sp);
           }
           catch (Exception e) {
 
