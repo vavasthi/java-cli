@@ -33,10 +33,13 @@ public class DownloadSIRRolls extends Base {
         // Optional: disable popup blocking
         chromePrefs.put("profile.default_content_settings.popups", 0);
         WebDriver driver = getWebDriver(false, chromePrefs);
-            final Integer constituency = 90;
-            for (int j = 1; j < 450; ++j) {
+//            final Integer constituency = 89;
+//            String parliamentConstituency = "BANGALORE%%20URBAN";
+            final Integer constituency = 83;
+            String parliamentConstituency = "BBMP";
+            for (int j = 1; j < 300; ++j) {
                 final Integer part = j;
-                String downloadURl = String.format("https://ceo.karnataka.gov.in/uploads/BANGALORE%%20URBAN/AC%%20%d/A%03d%04d.pdf", constituency, constituency, part);
+                String downloadURl = String.format("https://ceo.karnataka.gov.in/uploads/%s/AC%%20%d/A%03d%04d.pdf", parliamentConstituency, constituency, constituency, part);
                 download(driver, downloadURl);
             }
     }
@@ -49,7 +52,7 @@ public class DownloadSIRRolls extends Base {
         chromePrefs.put("download.prompt_for_download", false);
         // Disable the built-in PDF viewer, forcing external handling (download)
         chromePrefs.put("plugins.always_open_pdf_externally", true);
-        // Optional: disable popup blocking
+        // Optional: disable popup blockingsfdfd
         chromePrefs.put("profile.default_content_settings.popups", 0);
         WebDriver driver = getWebDriver(false, chromePrefs);
         for(int i = 1; i < 250; ++i)
