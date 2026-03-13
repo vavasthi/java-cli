@@ -83,7 +83,13 @@
         <artifactId>dec</artifactId>
         <version>0.1.2</version>
     </dependency>
-</dependencies>
+    <!-- Source: https://mvnrepository.com/artifact/com.zerodhatech.kiteconnect/kiteconnect -->
+    <dependency>
+        <groupId>com.zerodhatech.kiteconnect</groupId>
+        <artifactId>kiteconnect</artifactId>
+        <version>3.5.1</version>
+        <scope>compile</scope>
+    </dependency></dependencies>
     <build>
         <plugins>
             <plugin>
