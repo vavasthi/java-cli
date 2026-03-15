@@ -121,7 +121,7 @@ public class KiteLiveStream {
                         Filters.gt("strike", lastPrice - 300)
                 );
                 tokens.add(256265L);
-                tokens.add(26466L);
+                tokens.add(264969L);
                 System.out.println(query);
                 MongoCursor<ZerodhaInstruments> cursor = getZerodhaInstrumentsCollection().find(query).cursor();
                 while (cursor.hasNext()) {
@@ -317,7 +317,7 @@ public class KiteLiveStream {
                             zerodhaInstruments.clear();
                         }
                     } catch (Exception e) {
-                        System.out.println(String.format("ERROR %s", record));
+//                        System.out.println(String.format("ERROR %s", record));
                     }
                 });
             } catch (UncheckedIOException cex) {
