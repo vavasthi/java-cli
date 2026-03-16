@@ -6,8 +6,9 @@ public enum Segment {
   EQUITY,
   FUTURES,
   OPTIONS,
-  CO,
+  NCO,
   IX,
   CO_FUTURES,
   CO_OPTIONS,
+  NCO_INDICES
 }

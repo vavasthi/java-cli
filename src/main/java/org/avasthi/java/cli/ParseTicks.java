@@ -127,6 +127,7 @@ public class ParseTicks extends Base {
     System.out.println("Stock Master Map containing instrument token" + stockMasterMap.size());
     File tradeTickDirectory = new File(basedir);
     MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection = getZerodhaInstrumentsCollection();
+    popuateZerodhaInstrumentCollection();
 
     List<TradeTick> tradeTickList = Collections.synchronizedList(new ArrayList<>());
     List<TradeTickDepth> tradeTickDepthList = Collections.synchronizedList(new ArrayList<>());

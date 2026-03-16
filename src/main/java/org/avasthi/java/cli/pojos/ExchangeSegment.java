@@ -13,12 +13,14 @@ public enum ExchangeSegment {
   NSE_OPTIONS(Exchange.NSE, Segment.OPTIONS, "NFO-OPT"),
   NSE_INDICES(Exchange.NSE, Segment.INDICES, "INDICES"),
   NSE_EQUITY(Exchange.NSE, Segment.EQUITY, "NSE"),
-  NSE_COMMODITY(Exchange.NSE, Segment.CO, "NCO"),
-  NSE_COMMODITY_FUTURES(Exchange.NSE, Segment.CO_FUTURES, "NCO-FUT"),
-  NSE_COMMODITY_OPTIONS(Exchange.NSE, Segment.CO_OPTIONS, "NCO-OPT"),
+  NSE_COMMODITY(Exchange.NCO, Segment.NCO, "NCO"),
+  NSE_COMMODITY_FUTURES(Exchange.NCO, Segment.CO_FUTURES, "NCO-FUT"),
+  NSE_COMMODITY_OPTIONS(Exchange.NCO, Segment.CO_OPTIONS, "NCO-OPT"),
+  NSE_COMMODITY_INDICES(Exchange.NCO, Segment.NCO_INDICES, "INDICES"),
   MCX_FUTURES(Exchange.MCX, Segment.FUTURES, "MCX-FUT"),
   MCX_OPTIONS(Exchange.MCX, Segment.OPTIONS, "MCX-OPT"),
   MCX_INDICES(Exchange.MCX, Segment.INDICES, "INDICES"),
+  NSIX_INDICES(Exchange.GLOBAL, Segment.INDICES, "INDICES"),
   GLOBAL_INDICES(Exchange.GLOBAL, Segment.INDICES, "INDICES");
 
   private final Exchange exchange;
@@ -52,6 +54,8 @@ public enum ExchangeSegment {
         case GLOBAL -> GLOBAL_INDICES;
         case CDS -> CDS_INDICES;
         case MCX -> MCX_INDICES;
+        case NCO -> NSE_COMMODITY_INDICES;
+        case NSEIX -> NSIX_INDICES;
       };
     }
     else {

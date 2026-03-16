@@ -6,6 +6,8 @@ public enum Exchange {
   NSE,
   CDS,
   GLOBAL,
+  NCO,
+  NSEIX,
   MCX;
 
   public static Exchange create(String value) {

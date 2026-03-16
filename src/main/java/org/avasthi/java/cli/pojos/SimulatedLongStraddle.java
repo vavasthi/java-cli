@@ -24,10 +24,13 @@ public class SimulatedLongStraddle {
   private UUID tradeId;
   private Date timestamp;
   private String asset;
-  private long strike;
+  private float strike;
+  private double spotPrice;
   private Straddle buy;
   private Straddle sell;
   private double maxProfit;
+  private double maxLoss;
+  private float vix;
   private long profitOpportunityCount;
   private List<Straddle> otherSellOpportunities;
 }

@@ -1,17 +1,24 @@
 package org.avasthi.java.cli;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.result.InsertManyResult;
 import kotlin.Pair;
 import okhttp3.Headers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.csv.CSVFormat;
 import org.avasthi.java.cli.pojos.*;
 import org.avasthi.java.cli.pojos.Currency;
+import org.bson.Document;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -22,11 +29,17 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.Charset;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+import static java.util.Calendar.DECEMBER;
 import static java.util.Calendar.YEAR;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
@@ -48,7 +61,7 @@ public class Base {
   protected final String currencyCollectionName = "currency";
   protected final String zerodhaInstrumentCollectionName = "zerodhaInstruments";
   protected final String simulatedTradeName = "simulatedTrade";
-
+  protected final String dailyVix = "dailyVix";
   protected final double riskFreeRate = .10;
   protected static final MongoClient mongoClient = createMongoClient();
 
@@ -136,7 +149,7 @@ public class Base {
 
   protected Headers.Builder defaultHeaders(Headers.Builder builder) {
 
-    builder.add("Accept-Encoding", "gzip, deflate, br, zstd");
+//    builder.add("Accept-Encoding", "gzip, deflate, br, zstd");
     builder.add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
     return builder;
   }
@@ -202,6 +215,117 @@ public class Base {
   protected MongoCollection<ZerodhaInstrument> getZerodhaInstrumentsCollection() {
     return getMongoClient().getDatabase(database).getCollection(zerodhaInstrumentCollectionName, ZerodhaInstrument.class);
   }
+  protected MongoCollection<DailyVIX> getDailyVixCollection() {
+    return getMongoClient().getDatabase(database).getCollection(dailyVix, DailyVIX.class);
+  }
 
+  protected void popuateZerodhaInstrumentCollection() {
+    OkHttpClient client = new OkHttpClient.Builder()
+            .build();
+    String url = "https://api.kite.trade/instruments";
+    Map<String, String> extraHeaders = new HashMap<>();
+    extraHeaders.put("X-Kite-Version", "3");
+    Request request = new Request.Builder()
+            .url(url)
+            .headers(allHeaders(new Headers.Builder(), Headers.of(extraHeaders)).build())
+            .get()
+            .build();
+    CSVFormat format = CSVFormat
+            .DEFAULT
+            .builder()
+            .setSkipHeaderRecord(true)
+            .setHeader("instrument_token", "exchange_token", "symbol", "name", "last_price", "expiry", "strike", "tick_size", "lot_size", "instrument_type", "segment", "exchange").build();
+
+    List<ZerodhaInstrument> ZerodhaInstrument = new ArrayList<>();
+    MongoCollection<ZerodhaInstrument> ZerodhaInstrumentCollection = getZerodhaInstrumentsCollection();
+    ZerodhaInstrumentCollection.deleteMany(new Document());
+    DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("YYYY-MM-dd");
+    try (Response response = client.newCall(request).execute()) {
+      InputStream is = response.body().byteStream();
+      org.apache.commons.csv.CSVParser parser = org.apache.commons.csv.CSVParser.parse(is, Charset.defaultCharset(), format);
+      try {
+
+        parser.stream().forEach(record -> {
+          try {
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(2099, DECEMBER, 31, 23, 59, 59);
+            Date expiry = calendar.getTime();
+            String expiryStr = record.get("expiry").strip();
+            if (!expiryStr.isBlank()) {
+
+              try {
+
+                expiry = Date.from(LocalDate.parse(expiryStr, DateTimeFormatter.ISO_LOCAL_DATE).atTime(LocalTime.of(15,30)).toInstant(OffsetDateTime.now().getOffset()));
+              }
+              catch (Exception e) {
+                expiry = calendar.getTime();
+              }
+            }
+            ZerodhaInstrument zi = new ZerodhaInstrument(record.get("instrument_token"),
+                    record.get("exchange_token"),
+                    record.get("symbol"),
+                    record.get("name"),
+                    expiry,
+                    Float.parseFloat(record.get("strike")),
+                    Float.parseFloat(record.get("tick_size")),
+                    Long.parseLong(record.get("lot_size")),
+                    record.get("instrument_type"),
+                    ExchangeSegment.create(record.get("exchange"), record.get("segment")));
+            ZerodhaInstrument.add(zi);
+            if (ZerodhaInstrument.size() > 1000) {
+              ZerodhaInstrumentCollection.insertMany(ZerodhaInstrument);
+              ZerodhaInstrument.clear();
+            }
+          } catch (Exception e) {
+            System.out.println(String.format("ERROR %s", record));
+            e.printStackTrace();
+          }
+        });
+      } catch (UncheckedIOException cex) {
+        System.out.println(cex);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+  protected void populateIndiaVix(Date from, Date to) throws IOException, ParseException {
+    SimpleDateFormat ddmmyyyy = new SimpleDateFormat("dd-MM-yyyy");
+    SimpleDateFormat ddmmmyyyy = new SimpleDateFormat("dd-MMM-yyyy");
+    OkHttpClient client = new OkHttpClient.Builder()
+            .build();
+    String url = String.format("https://www.nseindia.com/api/historicalOR/vixhistory?from=%s&to=%s&csv=true", ddmmyyyy.format(from), ddmmyyyy.format(to));
+    Map<String, String> extraHeaders = new HashMap<>();
+    Request request = new Request.Builder()
+            .url(url)
+            .headers(allHeaders(new Headers.Builder(), Headers.of(extraHeaders)).build())
+            .get()
+            .build();
+    List<DailyVIX> dailyVIXList = new ArrayList<>();
+    try (Response response = client.newCall(request).execute()) {
+      String body = response.body().string();
+      System.out.println(response.code() + " " + body);
+      Gson gson = new Gson();
+      JsonObject jsonObject = gson.fromJson(body, JsonObject.class);
+      JsonArray array = jsonObject.getAsJsonArray("data");
+      for (JsonElement je : array.asList()) {
+        JsonObject jo = je.getAsJsonObject();
+        Date timestamp = ddmmmyyyy.parse(jo.get("EOD_TIMESTAMP").getAsString());
+        float open = jo.get("EOD_OPEN_INDEX_VAL").getAsFloat();
+        float high = jo.get("EOD_HIGH_INDEX_VAL").getAsFloat();
+        float low = jo.get("EOD_LOW_INDEX_VAL").getAsFloat();
+        float close = jo.get("EOD_CLOSE_INDEX_VAL").getAsFloat();
+        float prevClose = jo.get("EOD_PREV_CLOSE").getAsFloat();
+        float change = jo.get("VIX_PTS_CHG").getAsFloat();
+        float percentageChange = jo.get("VIX_PERC_CHG").getAsFloat();
+        DailyVIX dv = new DailyVIX(UUID.randomUUID(), timestamp, open, high, low, close, prevClose, change, percentageChange);
+        dailyVIXList.add(dv);
+      }
+    }
+    InsertManyResult imr = getMongoClient().getDatabase(database).getCollection(dailyVix, DailyVIX.class).insertMany(dailyVIXList);
+    System.out.println(imr.toString());
+  }
+  protected void populateIndiaVix(Date date) throws IOException, ParseException {
+    populateIndiaVix(date, date);
+  }
 
 }

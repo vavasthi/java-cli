@@ -23,4 +23,7 @@ public class SimulatedTrade {
   private long quantity;
   private double premium;
   private double IV;
+  private float openInterest;
+  private long volumeTraded;
+  private double spotPrice;
 }
