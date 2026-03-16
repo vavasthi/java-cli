@@ -29,7 +29,7 @@ public class DownloadBhavcopy extends Base{
   public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException {
 
     DownloadBhavcopy dbc = new DownloadBhavcopy();
-    dbc.downloadEquityBhavCopy();
+    dbc.downloadFnOBhavCopy();
   }
   private void download() throws UnsupportedEncodingException, InterruptedException {
 
@@ -42,7 +42,7 @@ public class DownloadBhavcopy extends Base{
     calendar.set(Calendar.MONTH, Calendar.JULY);
     calendar.set(Calendar.YEAR, 2000);
     // Incremental
-    calendar.set(Calendar.DAY_OF_MONTH, 28);
+    calendar.set(Calendar.DAY_OF_MONTH, 26);
     calendar.set(Calendar.MONTH, Calendar.NOVEMBER);
     calendar.set(Calendar.YEAR, 2024);
     SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-YYYY");
@@ -109,7 +109,7 @@ public class DownloadBhavcopy extends Base{
     Calendar calendar = Calendar.getInstance();
     calendar.set(Calendar.DAY_OF_MONTH, 26);
     calendar.set(Calendar.MONTH, Calendar.NOVEMBER);
-    calendar.set(Calendar.YEAR, 2025);
+    calendar.set(Calendar.YEAR, 2024);
 
     Calendar today = Calendar.getInstance();
     while (calendar.before(today)) {
@@ -123,6 +123,46 @@ public class DownloadBhavcopy extends Base{
     String name = "[{\"name\":\"CM-UDiFF Common Bhavcopy Final (zip)\",\"type\":\"daily-reports\",\"category\":\"capital-market\",\"section\":\"equities\"}]";
     String date = ddmmyyFormat.format(calendar.getTime());
     String type = "equities";
+    String mode = "single";
+    URIBuilder uriBuilder = new URIBuilder("https://www.nseindia.com/api/reports");
+    uriBuilder.addParameter("archives", name);
+    uriBuilder.addParameter("date", date);
+    uriBuilder.addParameter("type", type);
+    uriBuilder.addParameter("mode", mode);
+    URI uri = uriBuilder.build();
+    System.out.println(uri.toString());
+    driver.get(uri.toString());
+  }
+  private void downloadFnOBhavCopy() throws URISyntaxException {
+    File downloadDir = new File("/data/datasets/Bhavcopy", "FnO");
+    Map<String, Object> chromePrefs = new HashMap<String, Object>();
+    // Set the default download directory
+    chromePrefs.put("download.default_directory", downloadDir.getAbsolutePath());
+    // Disable the download prompt to automatically save files
+    chromePrefs.put("download.prompt_for_download", false);
+    // Disable the built-in PDF viewer, forcing external handling (download)
+    chromePrefs.put("plugins.always_open_pdf_externally", true);
+    // Optional: disable popup blocking
+    chromePrefs.put("profile.default_content_settings.popups", 0);
+    WebDriver driver = getWebDriver(false, chromePrefs);
+    driver.get("https://www.nseindia.com/all-reports#cr_equity_archives");
+    Calendar calendar = Calendar.getInstance();
+    calendar.set(Calendar.DAY_OF_MONTH, 26);
+    calendar.set(Calendar.MONTH, Calendar.NOVEMBER);
+    calendar.set(Calendar.YEAR, 2024);
+
+    Calendar today = Calendar.getInstance();
+    while (calendar.before(today)) {
+      downloadFnOBhavCopy(driver, calendar);
+      calendar.add(Calendar.DAY_OF_MONTH, 1);
+    }
+  }
+  private void downloadFnOBhavCopy(WebDriver driver,
+                                   Calendar calendar) throws URISyntaxException {
+    SimpleDateFormat ddmmyyFormat = new SimpleDateFormat("dd-MMM-yyyy");
+    String name = "[{\"name\":\"F&O - UDiFF Common Bhavcopy Final (zip)\",\"type\":\"archives\",\"category\":\"derivatives\",\"section\":\"equity\"}]";
+    String date = ddmmyyFormat.format(calendar.getTime());
+    String type = "equity";
     String mode = "single";
     URIBuilder uriBuilder = new URIBuilder("https://www.nseindia.com/api/reports");
     uriBuilder.addParameter("archives", name);

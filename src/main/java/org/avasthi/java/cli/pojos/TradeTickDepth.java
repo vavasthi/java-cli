@@ -5,6 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public record TradeTickDepth(UUID id, String symbol, Date exchangeTimestamp, Map<String, List<SingleDepthRecord>> depth) {
+public record TradeTickDepth(UUID tradeId, String symbol, String name, Date exchangeTimestamp, Map<String, List<SingleDepthRecord>> depth) {
 
 }

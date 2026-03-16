@@ -1,38 +1,33 @@
 package org.avasthi.java.cli;
 
 import com.google.gson.*;
-import com.google.gson.stream.MalformedJsonException;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.opencsv.CSVReader;
-import com.opencsv.CSVReaderBuilder;
 import com.opencsv.exceptions.CsvException;
 import com.opencsv.exceptions.CsvValidationException;
 import org.avasthi.java.cli.pojos.*;
-import org.bson.Document;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class ParseAndUploadTickData extends Base {
+public class ParseTicks extends Base {
 
-  private final int maxRunningThreads = 1000;
-  private ExecutorService executorService = Executors.newFixedThreadPool(50);
   private Map<Integer, List<Integer>> alternates = new HashMap<>();
   Map<Integer, StockMaster> stockMasterMap = new HashMap<>();
-  public ParseAndUploadTickData() throws IOException, CsvException {
+
+  public ParseTicks() throws IOException, CsvException {
     alternates.put(128028676, Arrays.asList(779521));
     alternates.put(128046084, Arrays.asList(341249));
     alternates.put(128130564, Arrays.asList(2939649));
@@ -61,17 +56,21 @@ public class ParseAndUploadTickData extends Base {
   }
 
   public static void main(String[] args) throws IOException, InterruptedException, ParseException, CsvException {
-    ParseAndUploadTickData lqr = new ParseAndUploadTickData();
-    lqr.parseTradeTicks();
+    ParseTicks lqr = new ParseTicks();
+    String basedir = ".";
+    if (args.length != 0) {
+      basedir = args[0];
+    }
+    lqr.parseTradeTicks(basedir);
   }
 
-  private void parseMinuteTicks() throws CsvValidationException, IOException {
+  private void parseMinuteTicks(String basedir) throws CsvValidationException, IOException {
     System.out.println("Stock Master Map containing instrument token" + stockMasterMap.size());
-    File tradeTickDirectory = new File("/data/datasets/Bhavcopy/ticks", "ticks");
+    File tradeTickDirectory = new File(basedir);
     MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection = getZerodhaInstrumentsCollection();
     Gson gson = new Gson();
     List<MinuteTick> minuteTickList = new ArrayList<>();
-    for (File f :tradeTickDirectory.listFiles(new FileFilter() {
+    for (File f : tradeTickDirectory.listFiles(new FileFilter() {
       @Override
       public boolean accept(File file) {
         return file.getAbsolutePath().endsWith("json");
@@ -88,8 +87,7 @@ public class ParseAndUploadTickData extends Base {
           String symbol = null;
           if (sm != null) {
             symbol = sm.getSymbol();
-          }
-          else if (zerodhaInstrument != null){
+          } else if (zerodhaInstrument != null) {
             symbol = zerodhaInstrument.symbol();
           }
           if (symbol != null) {
@@ -109,13 +107,11 @@ public class ParseAndUploadTickData extends Base {
               getMinuteTickCollection().insertMany(minuteTickList);
               minuteTickList.clear();
             }
-          }
-          else {
+          } else {
             System.out.println("Instrument Token missing from stock master " + instrument_token);
           }
         }
-      }
-      catch (NumberFormatException nfe) {
+      } catch (NumberFormatException nfe) {
         System.out.println(f.getName());
         throw nfe;
       }
@@ -125,10 +121,11 @@ public class ParseAndUploadTickData extends Base {
       minuteTickList.clear();
     }
   }
-  private void parseTradeTicks() throws IOException, InterruptedException {
+
+  private void parseTradeTicks(String basedir) throws IOException, InterruptedException {
 
     System.out.println("Stock Master Map containing instrument token" + stockMasterMap.size());
-    File tradeTickDirectory = new File("/data/datasets/Bhavcopy/ticks", "ticks");
+    File tradeTickDirectory = new File(basedir);
     MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection = getZerodhaInstrumentsCollection();
 
     List<TradeTick> tradeTickList = Collections.synchronizedList(new ArrayList<>());
@@ -136,14 +133,14 @@ public class ParseAndUploadTickData extends Base {
     final MongoCollection<TradeTick> tradeTickCoillection = getTradeTickCollection();
     final MongoCollection<TradeTickDepth> tradeTickDepthMongoCollection = getTradeTickDepthCollection();
 
-    for (File f :tradeTickDirectory.listFiles(new FileFilter() {
+    for (File f : tradeTickDirectory.listFiles(new FileFilter() {
       @Override
       public boolean accept(File file) {
         return file.getAbsolutePath().endsWith("csv");
       }
     })) {
-            moveToDestDir(f, zerodhaInstrumentCollection, tradeTickList, tradeTickDepthList, tradeTickCoillection, tradeTickDepthMongoCollection);
-      if (tradeTickList.size() > 1000) {
+      parseSingleFile(f, zerodhaInstrumentCollection, tradeTickList, tradeTickDepthList);
+      if (tradeTickList.size() > 10000) {
         tradeTickCoillection.insertMany(tradeTickList);
         if (!tradeTickDepthList.isEmpty()) {
 
@@ -155,27 +152,20 @@ public class ParseAndUploadTickData extends Base {
     }
     if (tradeTickList.size() > 0) {
 
-      synchronized (tradeTickList) {
+      tradeTickCoillection.insertMany(tradeTickList);
+        if (tradeTickDepthList.size() > 0) {
 
-        tradeTickCoillection.insertMany(tradeTickList);
-        synchronized (tradeTickDepthList) {
-
-          if (tradeTickDepthList.size() > 0) {
-
-            tradeTickDepthMongoCollection.insertMany(tradeTickDepthList);
-          }
-          tradeTickList.clear();
-          tradeTickDepthList.clear();
+          tradeTickDepthMongoCollection.insertMany(tradeTickDepthList);
         }
-      }
+        tradeTickList.clear();
+        tradeTickDepthList.clear();
     }
   }
+
   private void parseSingleFile(File f,
                                MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection,
                                List<TradeTick> tradeTickList,
-                               List<TradeTickDepth> tradeTickDepthList,
-                               final MongoCollection<TradeTick> tradeTickCoillection,
-                               final MongoCollection<TradeTickDepth> tradeTickDepthMongoCollection) throws IOException {
+                               List<TradeTickDepth> tradeTickDepthList) throws IOException {
 
     Gson gson = new GsonBuilder()
             .create();
@@ -195,8 +185,7 @@ public class ParseAndUploadTickData extends Base {
         if (sm != null) {
           symbol = sm.getSymbol();
           name = symbol;
-        }
-        else if (zerodhaInstrument != null) {
+        } else if (zerodhaInstrument != null) {
           symbol = zerodhaInstrument.symbol();
           name = zerodhaInstrument.name();
         }
@@ -268,8 +257,7 @@ public class ParseAndUploadTickData extends Base {
             TradeTickDepth ttd = new TradeTickDepth(tt.tradeId(), symbol, name, exchangeTimestamp, depthMap);
             tradeTickList.add(tt);
             tradeTickDepthList.add(ttd);
-          }
-          else {
+          } else {
 
             TradeTick tt = new TradeTick(UUID.randomUUID(),
                     tradable,
@@ -293,90 +281,23 @@ public class ParseAndUploadTickData extends Base {
           }
         }
       }
-      if (subdir != null) {
-        File archiveDirectory = new File("/data/datasets/Bhavcopy/ticks-archive/ticks", subdir);
-        archiveDirectory.mkdir();
-        currentFile.close();
-        try {
-
-          Files.move(f.toPath(), archiveDirectory.toPath());
-        }
-        catch (FileAlreadyExistsException faee) {
-
-          Files.move(f.toPath(), new File(archiveDirectory, UUID.randomUUID().toString()+".csv").toPath());
-        }
-      }
-    }
-    catch (NumberFormatException nfe) {
+    } catch (NumberFormatException nfe) {
       System.out.println(f.getName());
       throw nfe;
-    }
-    catch (JsonSyntaxException jse) {
+    } catch (JsonSyntaxException jse) {
       System.out.println("File Syntax Issue" + f.getAbsolutePath());
       jse.printStackTrace();
       throw jse;
-    }
-    catch (NullPointerException npe) {
+    } catch (NullPointerException npe) {
       System.out.println("Null pointer exception in file" + f.getAbsolutePath());
 //        throw npe;
     }
   }
-  private void moveToDestDir(File f,
-                               MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection,
-                               List<TradeTick> tradeTickList,
-                               List<TradeTickDepth> tradeTickDepthList,
-                               final MongoCollection<TradeTick> tradeTickCoillection,
-                               final MongoCollection<TradeTickDepth> tradeTickDepthMongoCollection) throws IOException {
 
-    Gson gson = new GsonBuilder()
-            .create();
-    String subdir = null;
-    FileReader currentFile = new FileReader(f);
-
-      JsonArray ja = gson.fromJson(currentFile, JsonArray.class);
-      for (JsonElement je : ja.asList()) {
-
-        JsonObject jo = je.getAsJsonObject();
-        ZerodhaInstrument zerodhaInstrument = zerodhaInstrumentCollection.find(Filters.eq("instrumentToken", String.valueOf(jo.get("instrument_token")))).first();
-        int instrument_token = jo.get("instrument_token").getAsInt();
-        StockMaster sm = stockMasterContains(instrument_token);
-        String symbol = null;
-        String name = null;
-        if (sm != null) {
-          symbol = sm.getSymbol();
-          name = symbol;
-        }
-        else if (zerodhaInstrument != null) {
-          symbol = zerodhaInstrument.symbol();
-          name = zerodhaInstrument.name();
-        }
-        if (symbol != null) {
-
-          DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-          LocalDateTime ldt = LocalDateTime.parse(jo.get("exchange_timestamp").getAsString(), dtf);
-          DateTimeFormatter pdf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-          subdir = pdf.format(ldt);
-      }
-      if (subdir != null) {
-        File archiveDirectory = new File("/data/datasets/Bhavcopy/ticks-archive/ticks", subdir);
-        archiveDirectory.mkdir();
-        currentFile.close();
-        try {
-
-          Files.move(f.toPath(), archiveDirectory.toPath());
-        }
-        catch (FileAlreadyExistsException faee) {
-
-          Files.move(f.toPath(), new File(archiveDirectory, UUID.randomUUID().toString()+".csv").toPath());
-        }
-      }
-    }
-  }
   private StockMaster stockMasterContains(int instrument_token) {
-    if ( stockMasterMap.containsKey(instrument_token)) {
+    if (stockMasterMap.containsKey(instrument_token)) {
       return stockMasterMap.get(instrument_token);
-    }
-    else {
+    } else {
       if (alternates.containsKey(instrument_token)) {
 
         List<Integer> alternateTokens = alternates.get(instrument_token);

@@ -5,6 +5,7 @@ import com.mongodb.client.model.Filters;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.avasthi.java.cli.pojos.*;
 
@@ -19,6 +20,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -37,7 +39,7 @@ public class LoadBhavcopy extends Base {
   private final String newFnOBhavcopyPattern = "BhavCopy_NSE_FO.*\\.csv";
   public static void main(String[] args) throws IOException, InterruptedException, ParseException {
     LoadBhavcopy lbc = new LoadBhavcopy();
-    lbc.parseBhavcopy();
+    lbc.parseFnOBhavcopy();
   }
   private void parseBhavcopy() throws IOException {
 
@@ -83,6 +85,26 @@ public class LoadBhavcopy extends Base {
     }
     stockPriceList.clear();
   }
+  private void writeOptionRecords(List<OptionPrice> optionPriceList) {
+
+    MongoCollection<OptionPrice> collection = getOptionPriceCollection();
+    try {
+
+      collection.insertMany(optionPriceList);
+      optionPriceList.clear();
+    }
+    catch (Exception e1) {
+      for (OptionPrice sp : optionPriceList) {
+        try {
+          collection.insertOne(sp);
+        }
+        catch (Exception e) {
+
+        }
+      }
+    }
+    optionPriceList.clear();
+  }
   private void parseFnOBhavcopy() throws IOException {
 
     File directory = new File(baseDirectory, "FnO");
@@ -97,15 +119,16 @@ public class LoadBhavcopy extends Base {
         } else if (Pattern.matches(newFnOBhavcopyPattern, file.getName())) {
           parseAndLoadNewFnOBhavcopy(file, stockMasterMap, optionPriceList);
         }
+        File destinationFile = new File(new File(directory, "original-zipfiles"), file.getName());
+        System.out.println(String.format("Moving %s to %s", file.getAbsolutePath(), destinationFile.getAbsolutePath()));
+        FileUtils.moveFile(file, destinationFile);
       }
       if (optionPriceList.size() > 1000) {
-        getOptionPriceCollection().insertMany(optionPriceList);
-        optionPriceList.clear();
+        writeOptionRecords(optionPriceList);
       }
     }
     if (optionPriceList.size() > 0) {
-      getOptionPriceCollection().insertMany(optionPriceList);
-      optionPriceList.clear();
+      writeOptionRecords(optionPriceList);
     }
   }
   private Set<String> niftySymbols() throws IOException {
@@ -235,6 +258,13 @@ public class LoadBhavcopy extends Base {
   }
   private Map<String, StockMaster> loadStockMaster() {
     Map<String, StockMaster> stockMasterMap = new HashMap<>();
+    MongoCollection<StockMaster> stockMasterMongoCollection = getStockMasterCollection();
+    if (stockMasterMongoCollection.find(Filters.eq("symbol", "NIFTY")).first() == null) {
+      stockMasterMongoCollection.insertOne(new StockMaster(UUID.randomUUID(), "NIFTY", "NIFTY 50", "IDX", new Date(), 0, 0, "NIFTY", 0, "NIFTY"));
+    }
+    if (stockMasterMongoCollection.find(Filters.eq("symbol", "BANKNIFTY")).first() == null) {
+      stockMasterMongoCollection.insertOne(new StockMaster(UUID.randomUUID(), "BANKNIFTY", "BANK NIFTY 50", "IDX", new Date(), 0, 0, "BANKNIFTY", 0, "BANKNIFTY"));
+    }
     getStockMasterCollection().find().forEach(sm -> {
       stockMasterMap.put(sm.getSymbol(), sm);
     });
@@ -436,6 +466,9 @@ public class LoadBhavcopy extends Base {
                   sm.getIsin());
           optionPriceList.add(op);
         }
+      }
+      catch (DateTimeParseException dtpe) {
+        System.out.println("Ignoring " + csvRecord.toString());
       }
       catch (Exception e) {
         System.out.println(csvRecord.toString());

@@ -26,7 +26,7 @@ import okhttp3.Response;
 import org.apache.commons.csv.CSVFormat;
 import org.avasthi.java.cli.pojos.ExchangeSegment;
 import org.avasthi.java.cli.pojos.StockMaster;
-import org.avasthi.java.cli.pojos.ZerodhaInstruments;
+import org.avasthi.java.cli.pojos.ZerodhaInstrument;
 import org.bson.Document;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
@@ -50,24 +50,8 @@ import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 record IV(double call, double put) {
 
 }
-public class KiteLiveStream {
+public class KiteLiveStream extends Base{
 
-    private final String mongoUrl = "mongodb://localhost";
-    private final String database = "capitalMarkets";
-    private final MongoClient mongoClient = getMongoClient();
-    private final String stockMasterCollectionName = "stockMaster";
-    private final String stockPriceCollectionName = "stockPrice";
-    private final String optionPriceCollectionName = "optionPrice";
-    private final String indexPriceCollectionName = "indexPrice";
-    private final String corporateEventCollectionName = "corporateEvents";
-    private final String minuteTickCollectionName = "minuteTick";
-    private final String tradeTickCollectionName = "tradeTick";
-    private final String tradeTickDepthCollectionName = "tradeTickDepth";
-    private final String quarterlyResultsCollectionName = "quarterlyResults";
-    private final String zerodhaInstrumentsCollectionName = "zerodhaInstruments";
-    private final String cpiCollectionName = "cpi";
-    private final String iipCollectionName = "iip";
-    private final String currencyCollectionName = "currency";
 
     private final MongoCollection<Tick> tickCollection = getMongoClient().getDatabase("newCapitalMarkets").getCollection("tick", Tick.class);
     private final Map<String, Long> indicesSymbol = Map.of(
@@ -86,7 +70,7 @@ public class KiteLiveStream {
         String accessToken = getAccessToken(apiKey);
         KiteConnect kiteConnect = new KiteConnect(apiKey);
         kiteConnect.setAccessToken(accessToken);
-        popuateZerodhaInstrumentsCollection();
+        popuateZerodhaInstrumentCollection();
 
 
         // 2. Initialize KiteTicker
@@ -123,9 +107,9 @@ public class KiteLiveStream {
                 tokens.add(256265L);
                 tokens.add(264969L);
                 System.out.println(query);
-                MongoCursor<ZerodhaInstruments> cursor = getZerodhaInstrumentsCollection().find(query).cursor();
+                MongoCursor<ZerodhaInstrument> cursor = getZerodhaInstrumentsCollection().find(query).cursor();
                 while (cursor.hasNext()) {
-                    ZerodhaInstruments zi = cursor.next();
+                    ZerodhaInstrument zi = cursor.next();
                     tokens.add(Long.parseLong(zi.instrumentToken()));
                 }
 
@@ -138,7 +122,7 @@ public class KiteLiveStream {
         });
 
         tickerProvider.setOnTickerArrivalListener(new OnTicks() {
-            MongoCollection<ZerodhaInstruments> zerodhaInstrumentsMongoCollection
+            MongoCollection<ZerodhaInstrument> ZerodhaInstrumentMongoCollection
                     = getZerodhaInstrumentsCollection();
             MongoCollection<StockMaster> stockMasterMongoCollection
                     = getStockMasterCollection();
@@ -146,26 +130,26 @@ public class KiteLiveStream {
             public void onTicks(ArrayList<Tick> ticks) {
                 List<String> stringList = new ArrayList<>();
                 for (Tick tick : ticks) {
-                    ZerodhaInstruments zerodhaInstruments
-                            = zerodhaInstrumentsMongoCollection.find(Filters.eq("instrumentToken", String.valueOf(tick.getInstrumentToken()))).first();
-                    if (zerodhaInstruments != null) {
-                        double spotPrice = lastTradedPrice.get(indicesSymbol.get(zerodhaInstruments.name()));
-                        double distanceFromSpot =Math.abs(spotPrice - ((double)zerodhaInstruments.strike()));
+                    ZerodhaInstrument ZerodhaInstrument
+                            = ZerodhaInstrumentMongoCollection.find(Filters.eq("instrumentToken", String.valueOf(tick.getInstrumentToken()))).first();
+                    if (ZerodhaInstrument != null) {
+                        double spotPrice = lastTradedPrice.get(indicesSymbol.get(ZerodhaInstrument.name()));
+                        double distanceFromSpot =Math.abs(spotPrice - ((double)ZerodhaInstrument.strike()));
 
                         if (distanceFromSpot < 100) {
 
-                            double iv = getImpliedVolatility(tick, zerodhaInstruments, spotPrice, riskFreeRate);
+                            double iv = getImpliedVolatility(tick, ZerodhaInstrument, spotPrice, riskFreeRate);
                             System.out.println("Token: " + tick.getInstrumentToken() +
                                     " | Timestamp: " + tick.getLastTradedTime() +
                                     " | LTP: " + tick.getLastTradedPrice() +
-                                    " | SYMBOL: " + zerodhaInstruments.symbol() +
-                                    " | NAME: " + zerodhaInstruments.name() +
-                                    " | EXPIRY: " + zerodhaInstruments.expiry() +
-                                    " | STRIKE: " + zerodhaInstruments.strike() +
+                                    " | SYMBOL: " + ZerodhaInstrument.symbol() +
+                                    " | NAME: " + ZerodhaInstrument.name() +
+                                    " | EXPIRY: " + ZerodhaInstrument.expiry() +
+                                    " | STRIKE: " + ZerodhaInstrument.strike() +
                                     " | IV: " + iv +
                                     " | Volume: " + tick.getVolumeTradedToday()
                             );
-                            stringList.add(String.format("%s,%s,%.2f,%s,%s,%s,%.2f,%f,%d\n", tick.getInstrumentToken(), tick.getLastTradedTime(), tick.getLastTradedPrice(), zerodhaInstruments.symbol(), zerodhaInstruments.name(), zerodhaInstruments.expiry(), zerodhaInstruments.strike(), iv, tick.getVolumeTradedToday()));
+                            stringList.add(String.format("%s,%s,%.2f,%s,%s,%s,%.2f,%f,%d\n", tick.getInstrumentToken(), tick.getLastTradedTime(), tick.getLastTradedPrice(), ZerodhaInstrument.symbol(), ZerodhaInstrument.name(), ZerodhaInstrument.expiry(), ZerodhaInstrument.strike(), iv, tick.getVolumeTradedToday()));
                         }
                     }
                     else {
@@ -239,40 +223,17 @@ public class KiteLiveStream {
                         .build()
         );
     }
-    private MongoCollection<ZerodhaInstruments> getZerodhaInstrumentsCollection() {
-        return getMongoClient().getDatabase(database).getCollection(zerodhaInstrumentsCollectionName, ZerodhaInstruments.class);
-    }
-    private MongoCollection<StockMaster> getStockMasterCollection() {
-        return getMongoClient().getDatabase(database).getCollection(stockMasterCollectionName, StockMaster.class);
-    }
-    private double getImpliedVolatility(Tick tick, ZerodhaInstruments zerodhaInstruments, double spotPrice, double riskFreeRate) {
+    private double getImpliedVolatility(Tick tick, ZerodhaInstrument ZerodhaInstrument, double spotPrice, double riskFreeRate) {
         Calendar calendar = Calendar.getInstance();
-        calendar.setTime(zerodhaInstruments.expiry());
+        calendar.setTime(ZerodhaInstrument.expiry());
         calendar.set(Calendar.HOUR_OF_DAY, 15);
         calendar.set(Calendar.MINUTE, 30);
         calendar.set(Calendar.SECOND, 0);
         double timeToExpirationInYear = getTimeToExpiryInYears(calendar.getTime());
-        return ImpliedVolatility.calculateIV(tick.getLastTradedPrice(), spotPrice, zerodhaInstruments.strike(), timeToExpirationInYear, riskFreeRate, zerodhaInstruments.symbol().endsWith("CE"));
-    }
-    private static double getTimeToExpiryInYears(Date expiryDate) {
-
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(expiryDate);
-        calendar.set(calendar.get(YEAR), Calendar.JANUARY, 1, 0 ,0, 0);
-        LocalDateTime expiryDay = LocalDateTime.ofInstant(expiryDate.toInstant(), ZoneId.systemDefault());
-        LocalDateTime startOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
-        calendar.add(YEAR, 1);
-        calendar.add(Calendar.SECOND, -1);
-        LocalDateTime endOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
-
-        long secondsToExpiry = ChronoUnit.SECONDS.between(LocalDateTime.now(ZoneId.systemDefault()), expiryDay);
-        long secondsInAYear = ChronoUnit.SECONDS.between(startOfTheYear, endOfTheYear);
-        return (double)secondsToExpiry  / (double) secondsInAYear;
-
+        return ImpliedVolatility.calculateIV(tick.getLastTradedPrice(), spotPrice, ZerodhaInstrument.strike(), timeToExpirationInYear, riskFreeRate, ZerodhaInstrument.symbol().endsWith("CE"));
     }
 
-
-    public void popuateZerodhaInstrumentsCollection() {
+    public void popuateZerodhaInstrumentCollection() {
         OkHttpClient client = new OkHttpClient.Builder()
                 .build();
         String url = "https://api.kite.trade/instruments";
@@ -289,9 +250,9 @@ public class KiteLiveStream {
                 .setSkipHeaderRecord(true)
                 .setHeader("instrument_token", "exchange_token", "symbol", "name", "last_price", "expiry", "strike", "tick_size", "lot_size", "instrument_type", "segment", "exchange").build();
 
-        List<ZerodhaInstruments> zerodhaInstruments = new ArrayList<>();
-        MongoCollection<ZerodhaInstruments> zerodhaInstrumentsCollection = getZerodhaInstrumentsCollection();
-        zerodhaInstrumentsCollection.deleteMany(new Document());
+        List<ZerodhaInstrument> ZerodhaInstrument = new ArrayList<>();
+        MongoCollection<ZerodhaInstrument> ZerodhaInstrumentCollection = getZerodhaInstrumentsCollection();
+        ZerodhaInstrumentCollection.deleteMany(new Document());
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("YYYY-MM-dd");
         try (Response response = client.newCall(request).execute()) {
             InputStream is = response.body().byteStream();
@@ -301,7 +262,7 @@ public class KiteLiveStream {
                 parser.stream().forEach(record -> {
                     try {
                         Date expiry = Date.from(LocalDate.parse(record.get("expiry"), DateTimeFormatter.ISO_LOCAL_DATE).atTime(LocalTime.of(15,30)).toInstant(OffsetDateTime.now().getOffset()));
-                        ZerodhaInstruments zi = new ZerodhaInstruments(record.get("instrument_token"),
+                        ZerodhaInstrument zi = new ZerodhaInstrument(record.get("instrument_token"),
                                 record.get("exchange_token"),
                                 record.get("symbol"),
                                 record.get("name"),
@@ -311,10 +272,10 @@ public class KiteLiveStream {
                                 Long.parseLong(record.get("lot_size")),
                                 record.get("instrument_type"),
                                 ExchangeSegment.create(record.get("exchange"), record.get("segment")));
-                        zerodhaInstruments.add(zi);
-                        if (zerodhaInstruments.size() > 1000) {
-                            zerodhaInstrumentsCollection.insertMany(zerodhaInstruments);
-                            zerodhaInstruments.clear();
+                        ZerodhaInstrument.add(zi);
+                        if (ZerodhaInstrument.size() > 1000) {
+                            ZerodhaInstrumentCollection.insertMany(ZerodhaInstrument);
+                            ZerodhaInstrument.clear();
                         }
                     } catch (Exception e) {
 //                        System.out.println(String.format("ERROR %s", record));
@@ -326,22 +287,6 @@ public class KiteLiveStream {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private Headers.Builder defaultHeaders(Headers.Builder builder) {
-
-        builder.add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
-        return builder;
-    }
-
-    private Headers.Builder allHeaders(Headers.Builder builder,
-                                       Headers headers) {
-        builder = defaultHeaders(builder);
-        for (Iterator<Pair<String, String>> it = headers.iterator(); it.hasNext(); ) {
-            Pair<String, String> kv = it.next();
-            builder.add(kv.getFirst(), kv.getSecond());
-        }
-        return builder;
     }
 
 }

@@ -22,15 +22,18 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+import static java.util.Calendar.YEAR;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 public class Base {
-  protected final String mongoUrl = "mongodb://localhost";
+  protected static final String mongoUrl = "mongodb://localhost";
   protected final String database = "capitalMarkets";
-  protected final MongoClient mongoClient = getMongoClient();
   protected final String stockMasterCollectionName = "stockMaster";
   protected final String stockPriceCollectionName = "stockPrice";
   protected final String optionPriceCollectionName = "optionPrice";
@@ -43,19 +46,26 @@ public class Base {
   protected final String cpiCollectionName = "cpi";
   protected final String iipCollectionName = "iip";
   protected final String currencyCollectionName = "currency";
+  protected final String zerodhaInstrumentCollectionName = "zerodhaInstruments";
+  protected final String simulatedTradeName = "simulatedTrade";
 
-  protected MongoClient getMongoClient() {
-    CodecRegistry pojoCodecRegistry = fromRegistries(
-            MongoClientSettings.getDefaultCodecRegistry(),
-            fromProviders(PojoCodecProvider.builder().automatic(true).build())
-    );
+  protected final double riskFreeRate = .10;
+  protected static final MongoClient mongoClient = createMongoClient();
+
+  private static MongoClient createMongoClient() {
 
     return MongoClients.create(
             MongoClientSettings.builder().applyConnectionString(new ConnectionString(mongoUrl))
-                    .codecRegistry(pojoCodecRegistry)
+                    .codecRegistry(fromRegistries(
+                            MongoClientSettings.getDefaultCodecRegistry(),
+                            fromProviders(PojoCodecProvider.builder().automatic(true).build())
+                    ))
                     .uuidRepresentation(UuidRepresentation.JAVA_LEGACY)
                     .build()
     );
+  }
+  protected  MongoClient getMongoClient() {
+    return mongoClient;
   }
   protected WebDriver getWebDriver() {
     return getWebDriver(true, new HashMap<>());
@@ -140,6 +150,28 @@ public class Base {
     }
     return builder;
   }
+  protected static double getTimeToExpiryInYears(Date present, Date expiryDate) {
+
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(expiryDate);
+    calendar.set(calendar.get(YEAR), Calendar.JANUARY, 1, 0 ,0, 0);
+    LocalDateTime expiryDay = LocalDateTime.ofInstant(expiryDate.toInstant(), ZoneId.systemDefault());
+    LocalDateTime startOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
+    calendar.add(YEAR, 1);
+    calendar.add(Calendar.SECOND, -1);
+    LocalDateTime endOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
+
+
+    long secondsToExpiry = ChronoUnit.SECONDS.between(LocalDateTime.ofInstant(present.toInstant(), ZoneId.systemDefault()), expiryDay);
+    long secondsInAYear = ChronoUnit.SECONDS.between(startOfTheYear, endOfTheYear);
+    return (double)secondsToExpiry  / (double) secondsInAYear;
+
+  }
+
+  protected static double getTimeToExpiryInYears(Date expiryDate) {
+    return getTimeToExpiryInYears(new Date(), expiryDate);
+  }
+
   protected MongoCollection<StockPrice> getStockPriceCollection() {
     return getMongoClient().getDatabase(database).getCollection(stockPriceCollectionName, StockPrice.class);
   }
@@ -166,6 +198,9 @@ public class Base {
   }
   protected MongoCollection<Currency> getCurrencyCollection() {
     return getMongoClient().getDatabase(database).getCollection(currencyCollectionName, Currency.class);
+  }
+  protected MongoCollection<ZerodhaInstrument> getZerodhaInstrumentsCollection() {
+    return getMongoClient().getDatabase(database).getCollection(zerodhaInstrumentCollectionName, ZerodhaInstrument.class);
   }
 
 
