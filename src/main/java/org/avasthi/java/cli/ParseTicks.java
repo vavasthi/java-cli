@@ -27,7 +27,7 @@ public class ParseTicks extends Base {
   private Map<Integer, List<Integer>> alternates = new HashMap<>();
   Map<Integer, StockMaster> stockMasterMap = new HashMap<>();
 
-  public ParseTicks() throws IOException, CsvException {
+  public ParseTicks() throws ParseException {
     alternates.put(128028676, Arrays.asList(779521));
     alternates.put(128046084, Arrays.asList(341249));
     alternates.put(128130564, Arrays.asList(2939649));
@@ -52,7 +52,6 @@ public class ParseTicks extends Base {
       nifty.setSymbol("NIFTY");
       stockMasterMap.put(256265, nifty);
     }
-
   }
 
   public static void main(String[] args) throws IOException, InterruptedException, ParseException, CsvException {

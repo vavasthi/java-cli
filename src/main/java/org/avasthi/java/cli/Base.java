@@ -327,5 +327,11 @@ public class Base {
   protected void populateIndiaVix(Date date) throws IOException, ParseException {
     populateIndiaVix(date, date);
   }
+  protected void populateIndiaVix() throws ParseException {
+
+    SimpleDateFormat ddmmmyyyy = new SimpleDateFormat("dd-MMM-yyyy");
+    Date now = new Date();
+    Date timestamp = ddmmmyyyy.parse(ddmmmyyyy.format(now));
+  }
 
 }

@@ -1,6 +1,7 @@
 package org.avasthi.java.cli;
 
 import com.mongodb.bulk.BulkWriteResult;
+import com.mongodb.bulk.BulkWriteUpsert;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.*;
@@ -11,19 +12,21 @@ import org.bson.conversions.Bson;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static com.mongodb.client.model.Indexes.ascending;
 import static com.mongodb.client.model.Indexes.descending;
 
 record OptionPair(ZerodhaInstrument call, ZerodhaInstrument put) {
 
 }
+record TradeUpdates(List<SimulatedLongStraddle> deleteList, List<SimulatedLongStraddle> insertList, List<SimulatedLongStraddle> replaceList) {
+
+}
 public class StraddleSimulator extends Base {
 
-  ExecutorService executorService = Executors.newFixedThreadPool(15);
+  ExecutorService executorService = Executors.newFixedThreadPool(20);
 
   Map<Float, OptionPair> optionMap = new HashMap<>();
   public StraddleSimulator() throws IOException, CsvException {
@@ -36,15 +39,16 @@ public class StraddleSimulator extends Base {
   }
   private void simulateTrades(final long quantity,
                               final String asset,
-                              final double expectedProfitPercentage) throws InterruptedException {
+                              final double expectedProfitPercentage) throws InterruptedException, ParseException {
 
     popuateZerodhaInstrumentCollection();
+    populateIndiaVix();
     Calendar from = Calendar.getInstance();
-    from.set(2026, Calendar.FEBRUARY, 26, 0, 0 ,0);
+    from.set(2026, Calendar.MARCH, 16, 0, 0 ,0);
     Calendar to = Calendar.getInstance();
-    to.set(2026, Calendar.MARCH, 14, 0, 0 ,0);
+    to.set(2026, Calendar.MARCH, 18, 0, 0 ,0);
     Calendar e = Calendar.getInstance();
-    e.set(2026,Calendar.MARCH,17,15,30,00);
+    e.set(2026,Calendar.MARCH,24,15,30,00);
     e.set(Calendar.MILLISECOND, 0);
     Date expiry = e.getTime();
     System.out.println(expiry);
@@ -92,6 +96,9 @@ public class StraddleSimulator extends Base {
     final Calendar timeCounter = Calendar.getInstance();
     timeCounter.setTime(startDay);
 
+    final List<WriteModel<SimulatedLongStraddle>> allWrites = new ArrayList<>();
+    final Set<UUID> movedSet = new HashSet<>();
+    final Map<Float, List<SimulatedLongStraddle>> insertedRecordMap = new HashMap<>();
     while (timeCounter.getTime().before(endDay)) {
       System.out.println("Starting for timestamp " + timeCounter.getTime());
 
@@ -103,22 +110,42 @@ public class StraddleSimulator extends Base {
       MongoCursor<TradeTick> tradeTickMongoCursor = tradeTickMongoCollection.find(tradeTickQuery).cursor();
       if (tradeTickMongoCursor.hasNext()) {
         final TradeTick spotTradeTick = tradeTickMongoCursor.next();
-        final List<Callable<Boolean>> callableList = new ArrayList<>();
         optionMap.entrySet().forEach(op -> {
-          callableList.add(() -> processOneTimestamp(timeCounter, op.getValue(), spotTradeTick, expectedProfitPercentage, asset, quantity));
+          TradeUpdates tu = processOneTimestamp(insertedRecordMap, timeCounter, op.getValue(), spotTradeTick, expectedProfitPercentage, asset, quantity);
+          tu.deleteList().forEach(d -> {
+//            allWrites.add(new DeleteOneModel<SimulatedLongStraddle>(Filters.eq("tradeId", d.getTradeId())));
+            movedSet.add(d.getTradeId());
+          });
+          tu.insertList().forEach( i -> {
+            allWrites.add(new InsertOneModel<SimulatedLongStraddle>(i));
+          });
+          tu.replaceList().forEach(r -> {
+ //           allWrites.add(new ReplaceOneModel<SimulatedLongStraddle>(Filters.eq("tradeId", r.getTradeId()), r));
+          });
         });
-        executorService.invokeAll(callableList);
-        callableList.clear();
       }
       else {
         System.out.println("No trade tick found for spot value for " + timeCounter.getTime());
       }
       timeCounter.add(Calendar.SECOND, 1);
     }
-    Bson filterUnsoldTrades = Filters.eq("profitOpportunityCount", 0);
-    simulatedLongStraddleCollection.aggregate(Arrays.asList(Aggregates.match(filterUnsoldTrades),
-            Aggregates.merge("simulatedTradesNoSell")));
-    simulatedLongStraddleCollection.deleteMany(filterUnsoldTrades);
+    if (!allWrites.isEmpty()) {
+
+      BulkWriteResult bwr = simulatedLongStraddleCollection.bulkWrite(allWrites, new BulkWriteOptions().ordered(true));
+//      BulkWriteResult bwr = simulatedLongStraddleCollection.bulkWrite(allWrites, new BulkWriteOptions().ordered(true));
+      System.out.println(String.format("INSERTING Database update, Deleted %d Inserted %d Replaced %d", bwr.getDeletedCount(), bwr.getInsertedCount(), bwr.getModifiedCount()));
+      allWrites.clear();
+    }
+    if (!movedSet.isEmpty()) {
+
+      Bson recordsMarkedToBeDeleted = Filters.in("tradeId", movedSet);
+      simulatedLongStraddleCollection.aggregate(Arrays.asList(
+              Aggregates.match(recordsMarkedToBeDeleted),
+              Aggregates.merge("deletedExpensiveSimulations", new MergeOptions().whenMatched(MergeOptions.WhenMatched.MERGE).whenNotMatched(MergeOptions.WhenNotMatched.INSERT))
+      ));
+      simulatedLongStraddleCollection.deleteMany(recordsMarkedToBeDeleted);
+      movedSet.clear();
+    }
   }
 
     /*
@@ -143,20 +170,59 @@ public class StraddleSimulator extends Base {
       }*/
 
 
-  private Boolean processOneTimestamp(Calendar timeCounter,
-                                      OptionPair op,
-                                      TradeTick spotTradeTick,
-                                      double expectedProfitPercentage,
-                                      String asset,
-                                      long quantity) {
+  private float getVix(Date timestamp) {
 
-    MongoCollection<SimulatedLongStraddle> simulatedLongStraddleCollection = getMongoClient().getDatabase(database).getCollection(simulatedTradeName, SimulatedLongStraddle.class);
-    MongoCollection<DailyVIX> dailyVIXMongoCollection = getDailyVixCollection();
+    try {
+
+      TradeTick tt = getTradeTickCollection().find(Filters.and(Filters.eq("symbol", "INDIA VIX"), Filters.eq("exchangeTimestamp", timestamp))).first();
+      return tt.lastPrice();
+    }
+    catch (Exception e) {
+      Calendar fromC = Calendar.getInstance();
+      fromC.setTime(timestamp);
+      fromC.add(Calendar.SECOND, -1);
+      Date from = fromC.getTime();
+      fromC.add(Calendar.SECOND, 2);
+      Date to = fromC.getTime();
+      try {
+
+        TradeTick tt = getTradeTickCollection().find(Filters.and(Filters.eq("symbol", "INDIA VIX"), Filters.gte("exchangeTimestamp", from), Filters.lte("exchangeTimestamp", to))).sort(ascending("exchangeTimestamp")).first();
+        return tt.lastPrice();
+      }
+      catch (Exception e1) {
+
+      }
+
+    }
     Calendar calendar = Calendar.getInstance();
-    calendar.set(timeCounter.get(Calendar.YEAR), timeCounter.get(Calendar.MONTH), timeCounter.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+    calendar.setTime(timestamp);
+    calendar.set(Calendar.HOUR_OF_DAY, 0);
+    calendar.set(Calendar.MINUTE, 0);
+    calendar.set(Calendar.SECOND, 0);
     calendar.set(Calendar.MILLISECOND, 0);
-    Bson vixFilter = Filters.lte("date", calendar.getTime());
-    final float vix = dailyVIXMongoCollection.find(vixFilter).sort(descending("date")).first().open();
+    Date to = calendar.getTime();
+    calendar.add(Calendar.DAY_OF_MONTH, -2);
+    Date from = calendar.getTime();
+    MongoCollection<DailyVIX> dailyVIXMongoCollection = getDailyVixCollection();
+    Bson vixFilter = Filters.and(Filters.gte("date", from), Filters.lte("date", to));
+    try {
+
+      DailyVIX dailyVIX = dailyVIXMongoCollection.find(vixFilter).sort(descending("date")).first();
+      return dailyVIX.open();
+    }
+    catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+  private TradeUpdates processOneTimestamp(Map<Float, List<SimulatedLongStraddle>> insertedRecordMap,
+                                           Calendar timeCounter,
+                                           OptionPair op,
+                                           TradeTick spotTradeTick,
+                                           double expectedProfitPercentage,
+                                           String asset,
+                                           long quantity) {
+
+    final float vix = getVix(spotTradeTick.exchangeTimestamp());
     Bson callOptionQuery = Filters.and(
             Filters.eq("symbol", op.call().symbol()),
             Filters.eq("exchangeTimestamp", timeCounter.getTime())
@@ -178,6 +244,7 @@ public class StraddleSimulator extends Base {
       putTradeTick = putCursor.next();
     }
 
+    List<SimulatedLongStraddle> deleteList = new ArrayList<>();
     List<SimulatedLongStraddle> insertList = new ArrayList<>();
     List<SimulatedLongStraddle> replaceList =  new ArrayList<>();
     if (callTradeTick != null && putTradeTick != null) {
@@ -193,20 +260,30 @@ public class StraddleSimulator extends Base {
       /**
        * TradeTick is available for both the call and put option at this strike rate. In this simulation we always buy
        * call and put options at the same strike rate. Now we check if we already have a trade at this strike pair.
+       * We only look for trades from today.
        */
-      MongoCursor<SimulatedLongStraddle> cursor = simulatedLongStraddleCollection.find(Filters.eq("strike", op.call().strike())).cursor();
+
+      List<SimulatedLongStraddle> insertedRecordList = insertedRecordMap.get(op.call().strike());
       boolean needToInsert = true;
-      while (cursor.hasNext()) {
-        SimulatedLongStraddle trade = cursor.next();
-        /**
-         * A trade at this strike already exists. Let's see if we can make profit on this. If it can be profitable, we \
-         * update sell details, otherwise we check if this is a cheaper option than previosly existing one and we add it
-         * as a new buy.
-         */
-        needToInsert = updateSellRecord(trade, callTradeTick, putTradeTick, op, callIV, putIV, expectedProfitPercentage, vix, insertList, replaceList);
+      if (insertedRecordList != null && !insertedRecordList.isEmpty()) {
+        for (SimulatedLongStraddle trade : insertedRecordList) {
+          /**
+           * A trade at this strike already exists. Let's see if we can make profit on this. If it can be profitable, we \
+           * update sell details, otherwise we check if this is a cheaper option than previosly existing one and we add it
+           * as a new buy.
+           */
+          needToInsert = updateSellRecord(trade, callTradeTick, putTradeTick, op, callIV, putIV, expectedProfitPercentage, vix, deleteList, replaceList);
+        }
+      }
+      else {
+        insertedRecordList = new ArrayList<>();
+        insertedRecordMap.put(op.call().strike(), insertedRecordList);
+        needToInsert = true;
       }
       /**
-       * Add a new buy trade at this price if there is no trade existing at this strike price. If the trade was found at
+       * Add a new buy trade at this price if there is no trade existing at
+       *
+       * this strike price. If the trade was found at
        * this price then found will be set to true.
        */
       if (needToInsert) {
@@ -214,7 +291,7 @@ public class StraddleSimulator extends Base {
         Set<Float> relevantStrikes = findNearestStrike(spotTradeTick.lastPrice(), 50);
         if (relevantStrikes.contains(op.call().strike()) && relevantStrikes.contains(op.put().strike())) {
 
-          SimulatedLongStraddle trade = SimulatedLongStraddle.builder()
+          SimulatedLongStraddle newTrade = SimulatedLongStraddle.builder()
                   .tradeId(UUID.randomUUID())
                   .asset(asset)
                   .buy(new SimulatedLongStraddle.Straddle(
@@ -249,25 +326,12 @@ public class StraddleSimulator extends Base {
                   .spotPrice(spotTradeTick.lastPrice())
                   .vix(vix)
                   .build();
-          insertList.add(trade);
+          insertList.add(newTrade);
+          insertedRecordList.add(newTrade);
         }
       }
     }
-    List<WriteModel<SimulatedLongStraddle>> writes = new ArrayList<>();
-    if (insertList.size() > 0) {
-      writes = insertList.stream().map(i -> new InsertOneModel<SimulatedLongStraddle>(i)).collect(Collectors.toList());
-    }
-    if (replaceList.size() > 0) {
-      writes.addAll(replaceList.stream().map( r -> new ReplaceOneModel<SimulatedLongStraddle>(Filters.eq("tradeId", r.getTradeId()), r)).collect(Collectors.toList()));
-    }
-    if (!writes.isEmpty()) {
-      BulkWriteResult bwr = simulatedLongStraddleCollection.bulkWrite(writes);
-      System.out.println(String.format("Writing records insert = %d, replace = %d, delete = %d", bwr.getInsertedCount(), bwr.getModifiedCount(), bwr.getDeletedCount()));
-    }
-    writes.clear();
-    insertList.clear();
-    replaceList.clear();
-    return true;
+    return new TradeUpdates(deleteList, insertList, replaceList);
   }
   private Date nextExpiry(Date date) {
     Calendar calendar = Calendar.getInstance();
@@ -293,15 +357,15 @@ public class StraddleSimulator extends Base {
    * @param putIV
    */
   private boolean updateSellRecord(SimulatedLongStraddle trade,
-                                TradeTick callTradeTick,
-                                TradeTick putTradeTick,
-                                OptionPair op,
-                                double callIV,
-                                double putIV,
-                                double expectedProfitPercentage,
-                                float vix,
-                                List<SimulatedLongStraddle> insertList,
-                                List<SimulatedLongStraddle> replaceList) {
+                                   TradeTick callTradeTick,
+                                   TradeTick putTradeTick,
+                                   OptionPair op,
+                                   double callIV,
+                                   double putIV,
+                                   double expectedProfitPercentage,
+                                   float vix,
+                                   List<SimulatedLongStraddle> deleteList,
+                                   List<SimulatedLongStraddle> replaceList) {
 
     final long callQuantity = trade.getBuy().call().getQuantity();
     final long putQuantity = trade.getBuy().put().getQuantity();
@@ -372,6 +436,12 @@ public class StraddleSimulator extends Base {
        * This option seems cheaper than a previously existing option. Let's add it as a new trade.
        */
       needToInsert = true;
+      if (trade.getSell() == null) {
+        /**
+         * Older buy has no sells yet, we can safely remove this one.
+         */
+        deleteList.add(trade);
+      }
     }
     return needToInsert;
   }
