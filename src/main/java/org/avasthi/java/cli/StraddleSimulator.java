@@ -1,7 +1,6 @@
 package org.avasthi.java.cli;
 
 import com.mongodb.bulk.BulkWriteResult;
-import com.mongodb.bulk.BulkWriteUpsert;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.*;
@@ -18,9 +17,6 @@ import java.util.stream.Collectors;
 import static com.mongodb.client.model.Indexes.ascending;
 import static com.mongodb.client.model.Indexes.descending;
 
-record OptionPair(ZerodhaInstrument call, ZerodhaInstrument put) {
-
-}
 record TradeUpdates(List<SimulatedLongStraddle> deleteList, List<SimulatedLongStraddle> insertList, List<SimulatedLongStraddle> replaceList) {
 
 }
