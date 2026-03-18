@@ -34,6 +34,7 @@ public class TradeBook {
                     double callIV,
                     double putIV) {
         double cost = quantity * (callTick.getLastTradedPrice() + putTick.getLastTradedPrice());
+        System.out.println(String.format("Buying straddle for %s and %s at %.2f and %.2f", callSymbol, putSymbol, callTick.getLastTradedPrice(), putTick.getLastTradedTime()));
         if ((currentPosition + cost)*1.1 <= budget) {
 
             LongStraddle newTrade = LongStraddle.builder()
@@ -75,6 +76,7 @@ public class TradeBook {
                     .build();
             book.put(newTrade.getStrike(),  newTrade);
             currentPosition += cost;
+            System.out.println("BOUGHT the option " + this.toString());
         }
         else {
             throw new RuntimeException("Insufficient funds");
@@ -160,5 +162,14 @@ public class TradeBook {
             book.remove(strike);
             System.out.println("SOLD ON Loss" + position.toString());
         }
+    }
+
+    @Override
+    public String toString() {
+        return "TradeBook{" +
+                "book=" + book +
+                ", budget=" + budget +
+                ", currentPosition=" + currentPosition +
+                '}';
     }
 }
