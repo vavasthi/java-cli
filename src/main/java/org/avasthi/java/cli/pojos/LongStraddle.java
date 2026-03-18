@@ -14,9 +14,13 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SimulatedLongStraddle {
+public class LongStraddle {
 
-  public record Straddle(SimulatedTrade call, SimulatedTrade put) {
+  public double getCost() {
+    return buy.call().getPremium() * buy.call().getQuantity() + buy.put().getPremium() * buy.put().getQuantity();
+  }
+
+  public record Straddle(Trade call, Trade put) {
 
   }
   private ObjectId id;
@@ -29,7 +33,7 @@ public class SimulatedLongStraddle {
   private Straddle sell;
   private double maxProfit;
   private double maxLoss;
-  private float vix;
+  private double vix;
   private long profitOpportunityCount;
   private List<Straddle> otherSellOpportunities;
 }
