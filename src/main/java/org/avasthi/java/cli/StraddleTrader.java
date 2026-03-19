@@ -12,7 +12,7 @@ import java.util.*;
 
 public class StraddleTrader extends Base implements KiteTradingInterface.TickListener{
 
-    private final double maxDiffInSpotAndStrike = 2.0;
+    private final double maxDiffInSpotAndStrike = 4.0;
     private final double riskFreeRate = .10;
     private final long defaultQuantity = 1;
     private final double profitPercentage = .03;
@@ -25,7 +25,7 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
     private final OptionsInterface niftyOptions;
     private final Map<ZerodhaInstrument, Tick> ticks = new HashMap<>();
     private final HashMap<Long, ZerodhaInstrument> allOptions = new HashMap<>();
-    private final TradeBook tradeBook = new TradeBook(100000);
+    private final TradeBook tradeBook;
     public static void main(String[] args) throws IOException, KiteException, InterruptedException {
 
         StraddleTrader straddleTrader = new StraddleTrader();
@@ -33,12 +33,13 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
         straddleTrader.setupInitialSubscriptions();
     }
 
-    private StraddleTrader() throws KiteException {
+    private StraddleTrader() throws KiteException, IOException {
         kiteTradingInterface =  new KiteTradingInterface("y57gy37ydalmh6ky");
         niftyOptions = new NiftyOptions(zerodhaInstrumentCollection, kiteTradingInterface);
         vixOptions = new VixOptions(zerodhaInstrumentCollection, kiteTradingInterface);
         options.addAll(List.of(niftyOptions, vixOptions));
         niftyOptions.getallOptions().forEach(zi -> allOptions.put(Long.parseLong(zi.instrumentToken()), zi));
+        tradeBook = new TradeBook(100000);
     }
     @Override
     public void onTick(Tick tick) {
@@ -48,7 +49,6 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
 
     @Override
     public void onBatchComplete(List<Tick> batch) {
-        System.out.println(ticks.size() + " batch completed");
         processNiftyTrade();
     }
 
@@ -109,31 +109,11 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
          *  4. Call IV and Put IV are within 15%
          */
         vix = vix / 100;
-        if (vix < .225) {
-            if (Math.abs(spotPrice - strike) < maxDiffInSpotAndStrike) {
-                if (Math.max(Math.abs(vix - callIv), Math.abs(vix - putIv))/vix < .15) {
-                    if (Math.abs(callIv - putIv)/callIv < .15) {
-                        /**
-                         * All conditions passed. We can take a trade..
-                         */
-                        return true;
-                    }
-                    else {
-                        System.out.println(String.format("Call IV %.2f and put IV %.2f are more than 15% apart from each other", callIv, putIv));
-                    }
-                }
-                else {
-                    System.out.println(String.format("Call IV %.2f and put IV %.2f are more than 15% apart from India VIX %.2f", callIv, putIv, vix));
-
-                }
-            }
-            else {
-                System.out.println(String.format("Spot price %.2f is too far off the strike price %.2f", spotPrice, strike));
-            }
-        }
-        else {
-            System.out.println(String.format("India VIX %.2f is more than 22.5", vix));
-        }
-        return false;
+        boolean vixCondition = vix < .225;
+        boolean spotStrikeCondition = Math.abs(spotPrice - strike) < maxDiffInSpotAndStrike;
+        boolean vixIvCondition = Math.max(Math.abs(vix - callIv), Math.abs(vix - putIv))/vix < .15;
+        boolean callPutIvCondition = Math.abs(callIv - putIv)/callIv < .15;
+        System.out.println(String.format("vixCondition: %s spotStrikeCondition %s vixIvCondition %s callPutIvCondition %s..callIv %.4f put Iv %.4f spot %.2f strike %.2f vix %.4f", vixCondition, spotStrikeCondition, vixIvCondition, callPutIvCondition, callIv, putIv, spotPrice, strike, vix));
+        return vixCondition && vixIvCondition && callPutIvCondition;
     }
 }
