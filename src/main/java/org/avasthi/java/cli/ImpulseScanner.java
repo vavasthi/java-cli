@@ -1,62 +1,46 @@
 package org.avasthi.java.cli;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
+import net.bytebuddy.build.HashCodeAndEqualsPlugin;
+import org.avasthi.java.cli.pojos.TradeTick;
 
-public class ImpulseScanner {
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.util.*;
 
-    public static void main(String[] args) {
-        // 1. Mock Data: In a real app, you'd load this from a CSV or API
-        Map<String, List<Double>> marketData = loadMarketData();
+public class ImpulseScanner extends Base {
 
-        // 2. Initialize the Indicator
-        ImpulseMACD indicator = new ImpulseMACD();
+    public static void main(String[] args) throws FileNotFoundException {
+      ImpulseScanner is = new ImpulseScanner();
+      is.run();
+    }
+  void run() throws FileNotFoundException {
+    PrintWriter writer = new PrintWriter(new File("macd.csv"));
+    List<TradeTick> ticks = new LinkedList<>();
 
-        System.out.println("=== IMPULSE MACD SCANNER REPORT ===");
-        System.out.println("Ticker\t\tSignal\t\tHistogramValue");
-        System.out.println("----------------------------------------------");
+    getTradeTickCollection().find(Filters.eq("symbol", "NIFTY2632422600PE")).sort(Sorts.ascending("exchangeTimestamp")).forEach(tt-> {
+      ticks.add(tt);
+        if (ticks.size() >= 200) {
 
-        for (String ticker : marketData.keySet()) {
-            List<Double> prices = marketData.get(ticker);
+          List<ImpulseMACDEngine.CandleReport> reports =
+                  ImpulseMACDEngine.generate(ticks, 34, 9, 30);
 
-            // Standard Impulse Settings: 34 (Filter), 34 (Fast), 125 (Slow), 9 (Signal)
-            indicator.calculate(prices, 34, 34, 125, 9);
 
-            int lastIdx = prices.size() - 1;
-            ImpulseMACD.Signal signal = indicator.getMidlineSignal(lastIdx);
-            double histoValue = indicator.getHistogram(lastIdx);
-
-            // Only report if there is an active crossover signal
-            if (signal != ImpulseMACD.Signal.HOLD) {
-                System.out.printf("%s\t\t%s\t\t%.4f%n", ticker, signal, histoValue);
-            }
+          // Verify specific behaviors
+          boolean foundBuy = false;
+          boolean foundSell = false;
+          boolean foundDiv = false;
+          ImpulseMACDEngine.CandleReport report = reports.getLast();
+          if (report.tradeSignal() != ImpulseMACDEngine.TradeSignal.NONE) {
+            System.out.println(ticks.getLast().exchangeTimestamp() + "," + report);
+          }
+        ticks.removeFirst();
         }
-    }
+    });
+    // 2. Run Engine
+    writer.close();
+  }
 
-    /**
-     * Helper to simulate multiple stocks.
-     * Replace this with your actual data ingestion logic.
-     */
-    private static Map<String, List<Double>> loadMarketData() {
-        Map<String, List<Double>> data = new HashMap<>();
-
-        // Let's mock 3 different tickers
-        data.put("AAPL", generateMockPrices(150.0, 0.05));
-        data.put("BTC/USD", generateMockPrices(60000.0, 0.15));
-        data.put("TSLA", generateMockPrices(200.0, -0.02));
-
-        return data;
-    }
-
-    private static List<Double> generateMockPrices(double start, double trend) {
-        List<Double> prices = new ArrayList<>();
-        double current = start;
-        for (int i = 0; i < 200; i++) {
-            current += (current * trend / 100) + (Math.random() * 2 - 1);
-            prices.add(current);
-        }
-        return prices;
-    }
 }
