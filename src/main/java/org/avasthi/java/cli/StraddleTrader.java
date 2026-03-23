@@ -16,7 +16,8 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
     private final double riskFreeRate = .10;
     private final long defaultQuantity = 1;
     private final double profitPercentage = .03;
-    private final double lossPercentage = .01;
+    private final double lossPercentage = .1;
+    private final double acceptableIvChange = .05;
     private final MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection
             = getMongoClient().getDatabase(database).getCollection(zerodhaInstrumentCollectionName, ZerodhaInstrument.class);
     private final List<OptionsInterface> options = new ArrayList<>();
@@ -31,8 +32,19 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
         StraddleTrader straddleTrader = new StraddleTrader();
         straddleTrader.start();
         straddleTrader.setupInitialSubscriptions();
+        Calendar eod = Calendar.getInstance();
+        eod.set(eod.get(Calendar.YEAR), eod.get(Calendar.MONTH), eod.get(Calendar.DAY_OF_MONTH), 15, 30, 0);
+
+        Calendar now = Calendar.getInstance();
+        while (now.before(eod)) {
+            Thread.sleep(1000);
+        }
+        straddleTrader.stop();
     }
 
+    private void stop() throws InterruptedException {
+        kiteTradingInterface.stop();
+    }
     private StraddleTrader() throws KiteException, IOException {
         kiteTradingInterface =  new KiteTradingInterface("y57gy37ydalmh6ky");
         niftyOptions = new NiftyOptions(zerodhaInstrumentCollection, kiteTradingInterface);
@@ -55,9 +67,6 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
     private void start() throws KiteException, InterruptedException, IOException {
         kiteTradingInterface.initialize();
         kiteTradingInterface.start();
-        Thread.sleep(5000);
-        options.forEach(option -> {
-            System.out.println(option.getLastPrice());});
         kiteTradingInterface.join();
     }
     private void setupInitialSubscriptions() throws IOException, KiteException {
@@ -80,11 +89,12 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
             double callIv = ImpliedVolatility.calculateIV(callTick.getLastTradedPrice(), spotPrice, strike, getTimeToExpiryInYears(optionPair.call().expiry()), riskFreeRate, true);
             double putIv = ImpliedVolatility.calculateIV(putTick.getLastTradedPrice(), spotPrice, strike, getTimeToExpiryInYears(optionPair.put().expiry()), riskFreeRate, false);
             LongStraddle longStraddle = tradeBook.get(strike);
+            boolean isTradeAcceptable = isTradeAcceptable(strike, spotPrice, vix, callTick, putTick, callIv, putIv);
             if (longStraddle == null) {
                 /**
                  * No trade exists for this strike price. Check if we have liquidity and trade conditions are met
                  */
-                if (isTradeAcceptable(strike, spotPrice, vix, callTick, putTick, callIv, putIv)) {
+                if (isTradeAcceptable) {
 
                     tradeBook.buy(niftyOptions.getAsset(), optionPair.call().symbol(), optionPair.put().symbol(), callTick, putTick, vix, defaultQuantity, spotPrice, strike, callIv, putIv);
                 }
@@ -94,10 +104,9 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
                 /**
                  * Square the position if sufficient profits are being made.
                  */
-                tradeBook.squareIfProfitableOrStopLoss(strike, spotPrice, callTick, putTick, callIv, putIv, profitPercentage, lossPercentage);
+                tradeBook.squareIfProfitableOrStopLoss(strike, spotPrice, callTick, putTick, callIv, putIv, profitPercentage, lossPercentage, acceptableIvChange);
             }
         }
-
     }
 
     private boolean isTradeAcceptable(double strike, double spotPrice, double vix, Tick callTick, Tick putTick, double callIv, double putIv) {

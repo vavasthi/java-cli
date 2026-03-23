@@ -36,4 +36,5 @@ public class LongStraddle {
   private double vix;
   private long profitOpportunityCount;
   private List<Straddle> otherSellOpportunities;
+  private double currentProfit;
 }

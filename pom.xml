@@ -90,6 +90,11 @@
         <artifactId>dec</artifactId>
         <version>0.1.2</version>
     </dependency>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
     <!-- Source: https://mvnrepository.com/artifact/com.zerodhatech.kiteconnect/kiteconnect -->
     <dependency>
         <groupId>com.zerodhatech.kiteconnect</groupId>

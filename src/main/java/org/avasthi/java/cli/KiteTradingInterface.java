@@ -162,10 +162,11 @@ public class KiteTradingInterface extends Base {
         tickerThread.start();
 
     }
-    public void stop() {
+    public void stop() throws InterruptedException {
         if (tickerThread != null && tickerThread.isAlive()) {
             tickerThread.interrupt();
         }
+        tickerThread.join();
     }
     public void join() throws InterruptedException {
         if (tickerThread != null && tickerThread.isAlive()) {
@@ -228,7 +229,10 @@ public class KiteTradingInterface extends Base {
             }
             tokenList.add(instrumentToken);
         });
-        tickerProvider.subscribe(instrumentTokens.stream().collect(Collectors.toCollection(ArrayList::new)));
+        ArrayList<Long> tokensToSubscribe = instrumentTokens.stream().collect(Collectors.toCollection(ArrayList::new));
+        tickerProvider.subscribe(tokensToSubscribe);
+        tickerProvider.setMode(tokensToSubscribe, KiteTicker.modeFull);
+
     }
     public synchronized void removeListener(TickListener tickListener) {
         Set<Long> instrumentTokens = reverseTickListeners.remove(tickListener);

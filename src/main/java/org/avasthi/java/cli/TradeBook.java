@@ -84,19 +84,25 @@ public class TradeBook {
                     .build();
             book.put(newTrade.getStrike(),  newTrade);
             currentPosition += cost;
-            writer.println(String.format("BUYING Straddle\n%s", gson.toJson(newTrade)));
-        }
-        else {
-            throw new RuntimeException("Insufficient funds");
+            writer.println(String.format("BUYING Straddle\n%s,", gson.toJson(newTrade)));
         }
         writer.flush();
     }
 
-    public void squareIfProfitableOrStopLoss(Float strike, double spotPrice, Tick callTick, Tick putTick, double callIV, double putIV, double profitPercentage, double lossPercentage) {
+    public void squareIfProfitableOrStopLoss(Float strike,
+                                             double spotPrice,
+                                             Tick callTick,
+                                             Tick putTick,
+                                             double callIV,
+                                             double putIV,
+                                             double profitPercentage,
+                                             double lossPercentage,
+                                             double accetableIvIncrease) {
         LongStraddle position = book.get(strike);
         double currentValue = (callTick.getAverageTradePrice()*position.getBuy().call().getQuantity() + putTick.getLastTradedPrice() * position.getBuy().put().getQuantity());
         double cost = position.getCost();
         double difference = currentValue - cost;
+        position.setCurrentProfit(difference);
         if (difference > cost * profitPercentage ) {
             /**
              * Book profit
@@ -127,14 +133,17 @@ public class TradeBook {
                             .build());
             position.setSell(sell);
             position.setMaxProfit(difference);
+            position.setCurrentProfit(difference);
             currentPosition -= currentValue;
             /**
              * Here we make actual call to broker..
              */
             book.remove(strike);
-            writer.println("SOLD ON Profit\n" + gson.toJson(position));
+            writer.println(String.format("SOLD ON Profit\n%s,", gson.toJson(position)));
         }
-        else if (difference > -cost * profitPercentage ) {
+        else if ((difference < -cost * lossPercentage)
+                || ((callIV - position.getBuy().call().getIV()) / position.getBuy().call().getIV()) > accetableIvIncrease
+                || ((putIV - position.getBuy().put().getIV()) / position.getBuy().put().getIV()) > accetableIvIncrease) {
             /**
              * Book loss and exit.
              */
@@ -164,12 +173,29 @@ public class TradeBook {
                             .build());
             position.setSell(sell);
             position.setMaxLoss(-difference);
+            position.setCurrentProfit(difference);
             currentPosition -= currentValue;
             /**
              * Here we make actual call to broker..
              */
             book.remove(strike);
-            writer.println("SOLD ON Loss\n" + gson.toJson(position));
+            writer.println(String.format("SOLD ON Loss\n%s,",gson.toJson(position)));
+        }
+        else {
+            position.setCurrentProfit(difference);
+            if (difference < 0) {
+                if (difference < -position.getMaxLoss()) {
+                    position.setMaxLoss(-difference);
+                    writer.println(String.format("UPDATING loss\n%s,",gson.toJson(position)));
+                }
+            }
+            else {
+                position.setProfitOpportunityCount(position.getProfitOpportunityCount() + 1);
+                if (difference > position.getMaxProfit()) {
+                    position.setMaxProfit(difference);
+                    writer.println(String.format("UPDATING profit\n%s,",gson.toJson(position)));
+                }
+            }
         }
         writer.flush();
     }
