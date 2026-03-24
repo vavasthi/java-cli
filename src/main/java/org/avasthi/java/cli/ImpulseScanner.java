@@ -22,10 +22,11 @@ public class ImpulseScanner extends Base {
 
     getTradeTickCollection().find(Filters.eq("symbol", "NIFTY2632422600PE")).sort(Sorts.ascending("exchangeTimestamp")).forEach(tt-> {
       ticks.add(tt);
-        if (ticks.size() >= 200) {
+        if (ticks.size() >= 500) {
 
           List<ImpulseMACDEngine.CandleReport> reports =
-                  ImpulseMACDEngine.generate(ticks, 34, 9, 30);
+                  ImpulseMACDEngine.generate(ticks, 5, 35, 5);
+//                  ImpulseMACDEngine.generate(ticks, 34, 9, 30);
 
 
           ImpulseMACDEngine.CandleReport report = reports.getLast();
@@ -35,7 +36,6 @@ public class ImpulseScanner extends Base {
         ticks.removeFirst();
         }
     });
-    // 2. Run Engine
     writer.close();
   }
 
