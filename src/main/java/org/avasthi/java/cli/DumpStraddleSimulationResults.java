@@ -28,7 +28,7 @@ public class DumpStraddleSimulationResults extends Base {
   private void dumpSimulationResults() throws FileNotFoundException {
 
     MongoCollection<SimulatedLongStraddle> simulatedLongStraddleCollection = getMongoClient().getDatabase(database).getCollection(simulatedTradeName, SimulatedLongStraddle.class);
-    String header = "id,timestamp,3pts,6pts,10pts,15pts,20pts,asset,status,strike,spotPrice,profitOpportunities,maxProfit,maxLoss,callSymbol,putSymbol,vix,callBuyIv,putBuyIv,callSellIv,putSellIv,callQuantity,putQuantity," +
+    String header = "id,timestamp,3pts,6pts,10pts,15pts,20pts,asset,status,strike,buySpotPrice,sellSpotPrice,profitOpportunities,maxProfit,maxLoss,callSymbol,putSymbol,vix,callBuyIv,putBuyIv,callSellIv,putSellIv,callQuantity,putQuantity," +
             "callBuyPremium,putBuyPremium,callSellPremium,putSellPremium,callBuyVolume,putBuyVolume,callSellVolume,putSellVolume,callBuyTimestamp,putBuyTimestamp,callSellTimestamp, putSellTimestamp," +
             "callBuyOI,putBuyOI,callSellOI,putSellOI";
     SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
@@ -37,7 +37,7 @@ public class DumpStraddleSimulationResults extends Base {
       simulatedLongStraddleCollection.find().forEach(s -> {
 
         ProfitMilestones profitMilestones = computeProfitMilestones(s);
-        String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%.2f,%.2f,%d,%.2f,%.2f,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f,%d,%d,%d,%d,%s,%s,%s,%s,%.2f,%.2f,%.2f,%.2f",
+        String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%.2f,%.2f,%.2f,%d,%.2f,%.2f,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f,%d,%d,%d,%d,%s,%s,%s,%s,%.2f,%.2f,%.2f,%.2f",
                 s.getTradeId(),
                 sdf.format(s.getTimestamp()),
                 profitMilestones != null && profitMilestones.threePercent() != null ? sdf.format(profitMilestones.threePercent()) : "",
@@ -48,7 +48,8 @@ public class DumpStraddleSimulationResults extends Base {
                 s.getAsset(),
                 s.getSell() == null ? "Open" : "Closed",
                 s.getStrike(),
-                s.getSpotPrice(),
+                s.getBuy().call().getSpotPrice(),
+                s.getSell() == null ? 0.0 : s.getSell().call().getSpotPrice(),
                 s.getProfitOpportunityCount(),
                 s.getMaxProfit(),
                 s.getMaxLoss(),

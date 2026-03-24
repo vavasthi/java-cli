@@ -40,11 +40,11 @@ public class StraddleSimulator extends Base {
     popuateZerodhaInstrumentCollection();
     populateIndiaVix();
     Calendar from = Calendar.getInstance();
-    from.set(2026, Calendar.MARCH, 23, 0, 0 ,0);
+    from.set(2026, Calendar.MARCH, 24, 0, 0 ,0);
     Calendar to = Calendar.getInstance();
-    to.set(2026, Calendar.MARCH, 24, 0, 0 ,0);
+    to.set(2026, Calendar.MARCH, 25, 0, 0 ,0);
     Calendar e = Calendar.getInstance();
-    e.set(2026,Calendar.MARCH,24,15,30,00);
+    e.set(2026,Calendar.MARCH,30,15,30,00);
     e.set(Calendar.MILLISECOND, 0);
     Date expiry = e.getTime();
     System.out.println(expiry);

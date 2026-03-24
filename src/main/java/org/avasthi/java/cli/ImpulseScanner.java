@@ -28,10 +28,6 @@ public class ImpulseScanner extends Base {
                   ImpulseMACDEngine.generate(ticks, 34, 9, 30);
 
 
-          // Verify specific behaviors
-          boolean foundBuy = false;
-          boolean foundSell = false;
-          boolean foundDiv = false;
           ImpulseMACDEngine.CandleReport report = reports.getLast();
           if (report.tradeSignal() != ImpulseMACDEngine.TradeSignal.NONE) {
             System.out.println(ticks.getLast().exchangeTimestamp() + "," + report);
