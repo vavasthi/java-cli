@@ -1,8 +1,13 @@
 package org.avasthi.java.cli;
 
 import com.google.gson.*;
+import com.mongodb.MongoBulkWriteException;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOneModel;
+import com.mongodb.client.model.ReplaceOptions;
 import com.opencsv.exceptions.CsvException;
 import com.opencsv.exceptions.CsvValidationException;
 import org.avasthi.java.cli.pojos.*;
@@ -128,7 +133,7 @@ public class ParseTicks extends Base {
     MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection = getZerodhaInstrumentsCollection();
     popuateZerodhaInstrumentCollection();
 
-    List<TradeTick> tradeTickList = Collections.synchronizedList(new ArrayList<>());
+    List<ReplaceOneModel<TradeTick>> tradeTickList = Collections.synchronizedList(new ArrayList<>());
     List<TradeTickDepth> tradeTickDepthList = Collections.synchronizedList(new ArrayList<>());
     final MongoCollection<TradeTick> tradeTickCoillection = getTradeTickCollection();
     final MongoCollection<TradeTickDepth> tradeTickDepthMongoCollection = getTradeTickDepthCollection();
@@ -141,7 +146,12 @@ public class ParseTicks extends Base {
     })) {
       parseSingleFile(f, zerodhaInstrumentCollection, tradeTickList, tradeTickDepthList);
       if (tradeTickList.size() > 10000) {
-        tradeTickCoillection.insertMany(tradeTickList);
+        try {
+
+          BulkWriteResult bwr = tradeTickCoillection.bulkWrite(tradeTickList, new BulkWriteOptions().ordered(false));
+        }
+        catch (MongoBulkWriteException e) {
+        }
         if (!tradeTickDepthList.isEmpty()) {
 
           tradeTickDepthMongoCollection.insertMany(tradeTickDepthList);
@@ -152,7 +162,8 @@ public class ParseTicks extends Base {
     }
     if (tradeTickList.size() > 0) {
 
-      tradeTickCoillection.insertMany(tradeTickList);
+      BulkWriteResult bwr = tradeTickCoillection.bulkWrite(tradeTickList, new BulkWriteOptions().ordered(false));
+      System.out.println(String.format("Inserted %d matched %d modified %d deleted %d trade ticks", bwr.getInsertedCount(), bwr.getMatchedCount(), bwr.getModifiedCount(), bwr.getDeletedCount()));
         if (tradeTickDepthList.size() > 0) {
 
           tradeTickDepthMongoCollection.insertMany(tradeTickDepthList);
@@ -164,7 +175,7 @@ public class ParseTicks extends Base {
 
   private void parseSingleFile(File f,
                                MongoCollection<ZerodhaInstrument> zerodhaInstrumentCollection,
-                               List<TradeTick> tradeTickList,
+                               List<ReplaceOneModel<TradeTick>> tradeTickList,
                                List<TradeTickDepth> tradeTickDepthList) throws IOException {
 
     Gson gson = new GsonBuilder()
@@ -255,7 +266,10 @@ public class ParseTicks extends Base {
             depthMap.put("buy", buyDepth);
             depthMap.put("sell", sellDepth);
             TradeTickDepth ttd = new TradeTickDepth(tt.tradeId(), symbol, name, exchangeTimestamp, depthMap);
-            tradeTickList.add(tt);
+            tradeTickList.add(new ReplaceOneModel<>(Filters.and(
+                    Filters.eq("symbol", tt.symbol()),
+                    Filters.eq("exchangeTimestamp", tt.exchangeTimestamp())
+            ), tt, new ReplaceOptions().upsert(true)));
             tradeTickDepthList.add(ttd);
           } else {
 
@@ -277,7 +291,10 @@ public class ParseTicks extends Base {
                     0,
                     0,
                     exchangeTimestamp);
-            tradeTickList.add(tt);
+            tradeTickList.add(new ReplaceOneModel<>(Filters.and(
+                    Filters.eq("symbol", tt.symbol()),
+                    Filters.eq("exchangeTimestamp", tt.exchangeTimestamp())
+            ), tt, new ReplaceOptions().upsert(true)));
           }
         }
       }

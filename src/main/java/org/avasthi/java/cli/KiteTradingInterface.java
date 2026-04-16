@@ -210,7 +210,7 @@ public class KiteTradingInterface extends Base {
         calendar.set(Calendar.HOUR_OF_DAY, 15);
         calendar.set(Calendar.MINUTE, 30);
         calendar.set(Calendar.SECOND, 0);
-        double timeToExpirationInYear = getTimeToExpiryInYears(calendar.getTime());
+        double timeToExpirationInYear = ImpliedVolatility.getTimeToExpiryInYears(calendar.getTime());
         return ImpliedVolatility.calculateIV(tick.getLastTradedPrice(), spotPrice, ZerodhaInstrument.strike(), timeToExpirationInYear, riskFreeRate, ZerodhaInstrument.symbol().endsWith("CE"));
     }
 

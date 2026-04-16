@@ -119,23 +119,78 @@ public class ImpliedVolatility {
 
         return impliedVolatility; // Return the best approximation found
     }
+  /**
+   * Calculates Implied Volatility using the Newton-Raphson method
+   * @param targetPrice The current market price of the option
+   * @param spotPrice Current stock price
+   * @param strikePrice Strike price
+   * @param fromDate
+   * @param expiry
+   * @param riskFreeRate Risk-free interest rate (e.g., 0.05 for 5%)
+   * @param isCall True for call, False for put
+   * @return
+   */
+  public static double calculateIV(double targetPrice,
+                                   double spotPrice,
+                                   double strikePrice,
+                                   Date fromDate,
+                                   Date expiry,
+                                   double riskFreeRate,
+                                   boolean isCall) {
 
-    private static double getTimeToExpiryInYears(Date expiryDate) {
+    double timeToExpirationInYears = getTimeToExpiryInYears(fromDate, expiry);
+    double impliedVolatility = 0.5; // Initial guess for volatility
+    double epsilon = 1e-6; // Accuracy tolerance
+    int maxIterations = 1000;
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(expiryDate);
-        calendar.set(calendar.get(YEAR), 0, 1, 0 ,0, 0);
-        LocalDateTime expiryDay = LocalDateTime.ofInstant(expiryDate.toInstant(), ZoneId.systemDefault());
-        LocalDateTime startOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
-        calendar.add(YEAR, 1);
-        calendar.add(Calendar.SECOND, -1);
-        LocalDateTime endOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
+    for (int i = 0; i < maxIterations; i++) {
+      double price = blackScholesPrice(spotPrice, strikePrice, timeToExpirationInYears, riskFreeRate, impliedVolatility, isCall);
+      double vega = calculateVega(spotPrice, strikePrice, timeToExpirationInYears, riskFreeRate, impliedVolatility);
 
-        long secondsToExpiry = ChronoUnit.SECONDS.between(LocalDateTime.now(ZoneId.systemDefault()), expiryDay);
-        long secondsInAYear = ChronoUnit.SECONDS.between(startOfTheYear, endOfTheYear);
-        return (double)secondsToExpiry  / (double) secondsInAYear;
+      // Avoid division by zero
+      if (Math.abs(vega) < 1e-10) break;
 
+      double diff = targetPrice - price;
+
+      // Check if we are close enough to the target price
+      if (Math.abs(diff) < epsilon) {
+        return impliedVolatility;
+      }
+
+      // Newton-Raphson step: sigma_new = sigma_old + (TargetPrice - ModelPrice) / Vega
+      impliedVolatility = impliedVolatility + (diff / vega);
+
+      // Boundary checks: Volatility can't be negative or realistically above 500%
+      if (impliedVolatility <= 0) impliedVolatility = 0.0001;
+      if (impliedVolatility > 5.0) impliedVolatility = 5.0;
     }
+
+    return impliedVolatility; // Return the best approximation found
+  }
+
+  public static double getTimeToExpiryInYears(Date present, Date expiryDate) {
+
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(expiryDate);
+    calendar.set(calendar.get(YEAR), Calendar.JANUARY, 1, 0 ,0, 0);
+    LocalDateTime expiryDay = LocalDateTime.ofInstant(expiryDate.toInstant(), ZoneId.systemDefault());
+    LocalDateTime startOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
+    calendar.add(YEAR, 1);
+    calendar.add(Calendar.SECOND, -1);
+    LocalDateTime endOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
+
+
+    long secondsToExpiry = ChronoUnit.SECONDS.between(LocalDateTime.ofInstant(present.toInstant(), ZoneId.systemDefault()), expiryDay);
+    long secondsInAYear = ChronoUnit.SECONDS.between(startOfTheYear, endOfTheYear);
+    return (double)secondsToExpiry  / (double) secondsInAYear;
+
+  }
+
+  public static double getTimeToExpiryInYears(Date expiryDate) {
+    return getTimeToExpiryInYears(new Date(), expiryDate);
+  }
+
+
     public static void main(String[] args) {
         Calendar expiryDate = Calendar.getInstance();
         expiryDate.set(2026, 2, 17, 15, 30, 0);

@@ -86,8 +86,8 @@ public class StraddleTrader extends Base implements KiteTradingInterface.TickLis
             OptionPair optionPair = niftyOptions.getOptionPair(strike);
             Tick callTick = ticks.get(optionPair.call());
             Tick putTick = ticks.get(optionPair.put());
-            double callIv = ImpliedVolatility.calculateIV(callTick.getLastTradedPrice(), spotPrice, strike, getTimeToExpiryInYears(optionPair.call().expiry()), riskFreeRate, true);
-            double putIv = ImpliedVolatility.calculateIV(putTick.getLastTradedPrice(), spotPrice, strike, getTimeToExpiryInYears(optionPair.put().expiry()), riskFreeRate, false);
+            double callIv = ImpliedVolatility.calculateIV(callTick.getLastTradedPrice(), spotPrice, strike, ImpliedVolatility.getTimeToExpiryInYears(optionPair.call().expiry()), riskFreeRate, true);
+            double putIv = ImpliedVolatility.calculateIV(putTick.getLastTradedPrice(), spotPrice, strike, ImpliedVolatility.getTimeToExpiryInYears(optionPair.put().expiry()), riskFreeRate, false);
             LongStraddle longStraddle = tradeBook.get(strike);
             boolean isTradeAcceptable = isTradeAcceptable(strike, spotPrice, vix, callTick, putTick, callIv, putIv);
             if (longStraddle == null) {

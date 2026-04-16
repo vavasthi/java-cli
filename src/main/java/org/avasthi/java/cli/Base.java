@@ -61,6 +61,7 @@ public class Base {
   protected final String currencyCollectionName = "currency";
   protected final String zerodhaInstrumentCollectionName = "zerodhaInstruments";
   protected final String simulatedTradeName = "simulatedTrade";
+  protected final String allSimulatedTradeName = "allSimulatedTrade";
   protected final String dailyVix = "dailyVix";
   protected final double riskFreeRate = .10;
   protected static final MongoClient mongoClient = createMongoClient();
@@ -163,27 +164,6 @@ public class Base {
     }
     return builder;
   }
-  protected static double getTimeToExpiryInYears(Date present, Date expiryDate) {
-
-    Calendar calendar = Calendar.getInstance();
-    calendar.setTime(expiryDate);
-    calendar.set(calendar.get(YEAR), Calendar.JANUARY, 1, 0 ,0, 0);
-    LocalDateTime expiryDay = LocalDateTime.ofInstant(expiryDate.toInstant(), ZoneId.systemDefault());
-    LocalDateTime startOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
-    calendar.add(YEAR, 1);
-    calendar.add(Calendar.SECOND, -1);
-    LocalDateTime endOfTheYear = LocalDateTime.ofInstant(calendar.toInstant(), ZoneId.systemDefault());
-
-
-    long secondsToExpiry = ChronoUnit.SECONDS.between(LocalDateTime.ofInstant(present.toInstant(), ZoneId.systemDefault()), expiryDay);
-    long secondsInAYear = ChronoUnit.SECONDS.between(startOfTheYear, endOfTheYear);
-    return (double)secondsToExpiry  / (double) secondsInAYear;
-
-  }
-
-  protected static double getTimeToExpiryInYears(Date expiryDate) {
-    return getTimeToExpiryInYears(new Date(), expiryDate);
-  }
 
   protected MongoCollection<StockPrice> getStockPriceCollection() {
     return getMongoClient().getDatabase(database).getCollection(stockPriceCollectionName, StockPrice.class);
@@ -217,6 +197,9 @@ public class Base {
   }
   protected MongoCollection<DailyVIX> getDailyVixCollection() {
     return getMongoClient().getDatabase(database).getCollection(dailyVix, DailyVIX.class);
+  }
+  protected MongoCollection<SimulatedLongStraddle> getAllSimulatedTradesCollection() {
+    return getMongoClient().getDatabase(database).getCollection(allSimulatedTradeName, SimulatedLongStraddle.class);
   }
 
   protected void popuateZerodhaInstrumentCollection() {

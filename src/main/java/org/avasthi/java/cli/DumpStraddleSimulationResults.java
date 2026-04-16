@@ -3,6 +3,7 @@ package org.avasthi.java.cli;
 import com.google.gson.*;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 import com.opencsv.exceptions.CsvException;
 import com.opencsv.exceptions.CsvValidationException;
 import org.avasthi.java.cli.pojos.*;
@@ -34,7 +35,7 @@ public class DumpStraddleSimulationResults extends Base {
     SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
     try (final PrintWriter pw = new PrintWriter("dump.csv");) {
       pw.println(header);
-      simulatedLongStraddleCollection.find().forEach(s -> {
+      simulatedLongStraddleCollection.find().sort(Sorts.ascending("timestamp")).forEach(s -> {
 
         ProfitMilestones profitMilestones = computeProfitMilestones(s);
         String line = String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%.2f,%.2f,%.2f,%d,%.2f,%.2f,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d,%.2f,%.2f,%.2f,%.2f,%d,%d,%d,%d,%s,%s,%s,%s,%.2f,%.2f,%.2f,%.2f",
