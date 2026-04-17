@@ -1,5 +1,7 @@
 package org.avasthi.java.cli;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -11,6 +13,8 @@ import java.util.Date;
 import static java.util.Calendar.YEAR;
 
 public class ImpliedVolatility {
+
+    private static final NormalDistribution standardNormal = new NormalDistribution(0,1);
 
     // Standard Normal Cumulative Distribution Function (CDF)
     private static double Math_erf(double x) {
@@ -57,6 +61,24 @@ public class ImpliedVolatility {
         double d1 = (Math.log(spotPrice / strikePrice) + (riskFreeRate + 0.5 * impliedVolatility * impliedVolatility) * timeToExpiryInYears) / (impliedVolatility * Math.sqrt(timeToExpiryInYears));
         return spotPrice * Math.sqrt(timeToExpiryInYears) * normalPDF(d1);
     }
+    public static double calculateDelta(double spotPrice,
+                                 double strikePrice,
+                                 Date expiry,
+                                 double riskFreeRate,
+                                 double iv,
+                                 boolean isCall) {
+
+        double timeToExpirationInYears = getTimeToExpiryInYears(expiry);
+        // Calculate d1
+        double d1 = (Math.log(spotPrice / strikePrice) + (riskFreeRate + 0.5 * Math.pow(iv, 2)) * timeToExpirationInYears) / (iv * Math.sqrt(timeToExpirationInYears));
+
+        // Delta for Call = N(d1)
+        // Delta for Put = N(d1) - 1
+        double delta = standardNormal.cumulativeProbability(d1);
+
+        return isCall ? delta : delta - 1;
+    }
+
 
     public static double putPriceFromCall(double callPrice,
                                           double spotPrice,
