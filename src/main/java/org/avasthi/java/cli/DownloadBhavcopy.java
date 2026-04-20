@@ -147,9 +147,9 @@ public class DownloadBhavcopy extends Base{
     WebDriver driver = getWebDriver(false, chromePrefs);
     driver.get("https://www.nseindia.com/all-reports#cr_equity_archives");
     Calendar calendar = Calendar.getInstance();
-    calendar.set(Calendar.DAY_OF_MONTH, 26);
-    calendar.set(Calendar.MONTH, Calendar.NOVEMBER);
-    calendar.set(Calendar.YEAR, 2024);
+    calendar.set(Calendar.DAY_OF_MONTH, 17);
+    calendar.set(Calendar.MONTH, Calendar.JANUARY);
+    calendar.set(Calendar.YEAR, 2026);
 
     Calendar today = Calendar.getInstance();
     while (calendar.before(today)) {

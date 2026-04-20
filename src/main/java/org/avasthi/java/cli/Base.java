@@ -62,6 +62,7 @@ public class Base {
   protected final String zerodhaInstrumentCollectionName = "zerodhaInstruments";
   protected final String simulatedTradeName = "simulatedTrade";
   protected final String allSimulatedTradeName = "allSimulatedTrade";
+  protected final String ironCondorName = "ironCondor";
   protected final String dailyVix = "dailyVix";
   protected final double riskFreeRate = .10;
   protected static final MongoClient mongoClient = createMongoClient();
@@ -200,6 +201,9 @@ public class Base {
   }
   protected MongoCollection<SimulatedLongStraddle> getAllSimulatedTradesCollection() {
     return getMongoClient().getDatabase(database).getCollection(allSimulatedTradeName, SimulatedLongStraddle.class);
+  }
+  protected MongoCollection<IronCondor> getIronCondorTradesCollection() {
+    return getMongoClient().getDatabase(database).getCollection(ironCondorName, IronCondor.class);
   }
 
   protected void popuateZerodhaInstrumentCollection() {

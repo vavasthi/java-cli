@@ -59,9 +59,9 @@ public class LongStraddlePricingGraph extends Base {
     popuateZerodhaInstrumentCollection();
     populateIndiaVix();
     Calendar from = Calendar.getInstance();
-    from.set(2026, Calendar.MARCH, 20, 0, 0 ,0);
+    from.set(2026, Calendar.APRIL, 17, 0, 0 ,0);
     Calendar to = Calendar.getInstance();
-    to.set(2026, Calendar.APRIL, 17, 0, 0 ,0);
+    to.set(2026, Calendar.APRIL, 18, 0, 0 ,0);
     while (from.before(to)) {
           pricingGraphData(from.get(Calendar.YEAR),
                   from.get(Calendar.MONTH),
